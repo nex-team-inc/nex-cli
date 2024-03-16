@@ -1,1 +1,6 @@
-Software tools for Olympia
+Software Tools for Olympia Project
+
+# Usage
+
+pip install -e .
+olympia --help

@@ -1,10 +1,8 @@
-#!/usr/bin/env python3
-
 import os
 import hmac
 import hashlib
 import base64
-import typer
+import click
 
 HASH_KEY = bytes([(b + 256) % 256 for b in [-82, -124, -92, 29, 41, -60, 51, 39, -112, 52, 85, -56, 118, 76, 4, 82]])
 SERIAL_NO_RANGES = [
@@ -39,11 +37,10 @@ def find_matching_hash(range_start, range_end, search_prefix, progress):
             return string, base64_hash
     return None
 
-
-def main(prefix: str):
-    """
-    Find a device serial number with a device tracking ID matching PREFIX.
-    """
+@click.command('decode-tracking-id')
+@click.argument('track_id_prefix')
+def decode(track_id_prefix: str):
+    """Find a device ID matching a tracking ID."""
 
     # Calculate the total number of items across all ranges
     total_items = 0
@@ -53,9 +50,9 @@ def main(prefix: str):
 
     # Iterate each range and find a matching result
     result = None
-    with typer.progressbar(length=total_items) as progress:
+    with click.progressbar(length=total_items) as progress:
         for range_start, range_end in SERIAL_NO_RANGES:
-            result = find_matching_hash(range_start, range_end, prefix, progress)
+            result = find_matching_hash(range_start, range_end, track_id_prefix, progress)
             if result:
                 break
 
@@ -65,7 +62,3 @@ def main(prefix: str):
         print(f"Device Tracking ID: {matching_hash}")
     else:
         print("No matches.")
-
-
-if __name__ == "__main__":
-    typer.run(main)
