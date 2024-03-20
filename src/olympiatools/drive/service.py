@@ -10,7 +10,7 @@ import re
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 
 # Path to the credentials and token files
-CREDENTIALS_FILE = pkg_resources.path('olympiatools', 'config/google_oauth_client_credentials.json')
+CREDENTIALS_FILE = pkg_resources.path('olympiatools', 'google_oauth_client_credentials.json')
 TOKEN_FILE = Path.home() / '.olympiatools/google_drive_token.json'
 
 # Function to extract the file ID from a Google Drive URL
@@ -27,9 +27,9 @@ def create_service():
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            flow = InstalledAppFlow.from_client_secrets_file(
-                CREDENTIALS_FILE, SCOPES)
-            creds = flow.run_local_server(port=0)
-        with open(TOKEN_FILE, 'w') as token:
-            token.write(creds.to_json())
+            with CREDENTIALS_FILE as file:
+                flow = InstalledAppFlow.from_client_secrets_file(file, SCOPES)
+                creds = flow.run_local_server(port=0)
+        TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
+        TOKEN_FILE.write_text(creds.to_json())
     return build('drive', 'v3', credentials=creds)

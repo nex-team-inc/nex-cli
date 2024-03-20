@@ -1,6 +1,6 @@
 import click
 import subprocess
-import pkg_resources
+import importlib.resources as pkg_resources
 
 @click.group("adb")
 def cli():
