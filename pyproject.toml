@@ -1,0 +1,14 @@
+[project]
+name = "olympiatools"
+version = "0.1.0"
+description = "Software Tools for Olympia Project"
+readme = "README.md"
+requires-python = ">=3.7"
+dependencies = [
+    "click>=8.1",
+    "google-api-python-client>=2.122",
+    "google-auth-oauthlib>=1.2.0",
+]
+
+[project.scripts]
+olympia = "olympiatools.cli:main"
