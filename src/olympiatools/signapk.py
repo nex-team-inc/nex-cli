@@ -1,10 +1,12 @@
 import click
+import importlib.resources as pkg_resources
 import os.path
 import sys
 import subprocess
 import shutil
 import secrets
 import string
+from google.cloud import kms
 
 DEFAULT_ANDROID_HOME="~/Library/Android/sdk"
 CERT_VALIDITY=9125
@@ -26,25 +28,22 @@ CERT_VALIDITY=9125
 @click.option("--yes", "-y", help="Automatic yes to prompts; assume \"yes\" as answer to all prompts and run non-interactively.", is_flag=True)
 def cli(ctx, project, name, kms_key, kms_keyring, kms_location, keystore_path, keystore_password, key_alias, dname, android_home, gcloud_path, yes):
     """Nex Platform APK signing utility"""
-    global PROJECT, GCLOUD_PATH
+    global PROJECT, NAME, KMS_KEY, KEY_ALIAS, KEYSTORE_PATH, KEYSTORE_PASSWORD, KMS_LOCATION, KMS_KEYRING
 
     PROJECT = project
-    GCLOUD_PATH = find_gcloud(gcloud_path)
+    NAME = name
+    KMS_KEY = kms_key
+    KEY_ALIAS = key_alias
+    KEYSTORE_PATH = keystore_path
+    KEYSTORE_PASSWORD = keystore_password
+    KMS_KEYRING = kms_keyring
+    KMS_LOCATION = kms_location
+    # GCLOUD_PATH = find_gcloud(gcloud_path)
+    find_android_sdk_build_tools(android_home)
 
     ctx.ensure_object(dict)
-    ctx.obj['NAME'] = name
-    ctx.obj['KMS_KEY'] = kms_key
-    ctx.obj['KMS_KEYRING'] = kms_keyring
-    ctx.obj['KMS_LOCATION'] = kms_location
-    ctx.obj['KEYSTORE_PATH'] = keystore_path
-    ctx.obj['KEYSTORE_PASSWORD'] = keystore_password
-    ctx.obj['KEY_ALIAS'] = key_alias
     ctx.obj['DNAME'] = dname
-    ctx.obj['ANDROID_HOME'] = android_home
     ctx.obj['YES'] = yes
-
-android_sdk_dir=None
-android_build_tools_dir=None
 
 def ask_yesno(ctx, prompt, default=False):
     if ctx.obj["YES"]:
@@ -57,41 +56,40 @@ def ask_yesno(ctx, prompt, default=False):
         return False
     return default
 
-def find_android_sdk_build_tools(ctx):
-    global android_sdk_dir, android_build_tools_dir
-    android_sdk_dir = DEFAULT_ANDROID_HOME
-    if ctx.obj["ANDROID_HOME"]:
-        android_sdk_dir = ctx.obj["ANDROID_HOME"]
+def find_android_sdk_build_tools(android_home):
+    global ANDROID_SDK, ANDROID_BUILD_TOOLS
+    ANDROID_SDK = DEFAULT_ANDROID_HOME
+    if android_home:
+        ANDROID_SDK = android_home
     elif 'ANDROID_HOME' in os.environ:
-        android_sdk_dir = os.environ['ANDROID_HOME']
-    android_sdk_dir = os.path.expanduser(android_sdk_dir)
-    if not os.path.isdir(android_sdk_dir):
-        sys.exit(f"error: Android SDK path is not a directory: {android_sdk_dir}")
-    tmp_build_tools_dir = os.path.join(android_sdk_dir, 'build-tools')
+        ANDROID_SDK = os.environ['ANDROID_HOME']
+    ANDROID_SDK = os.path.expanduser(ANDROID_SDK)
+    if not os.path.isdir(ANDROID_SDK):
+        sys.exit(f"error: Android SDK path is not a directory: {ANDROID_SDK}")
+    tmp_build_tools_dir = os.path.join(ANDROID_SDK, 'build-tools')
     if not os.path.isdir(tmp_build_tools_dir):
-        sys.exit(f"error: Android SDK does not contain build-tools: {android_sdk_dir}")
+        sys.exit(f"error: Android SDK does not contain build-tools: {ANDROID_SDK}")
     dirs = os.listdir(tmp_build_tools_dir)
     if len(dirs) == 0:
         sys.exit("error: Android SDK build tools could not be found")
     dirs.sort(reverse=True)
-    android_build_tools_dir = os.path.join(tmp_build_tools_dir, dirs[0])
+    ANDROID_BUILD_TOOLS = os.path.join(tmp_build_tools_dir, dirs[0])
 
 def find_gcloud(custom_path):
+    global GCLOUD_PATH
     if custom_path:
         if os.path.isfile(custom_path):
-            return custom_path
+            GCLOUD_PATH = custom_path
         else:
             sys.exit(f"error: gcloud CLI could not be found at {custom_path}")
 
-    gcloud_path = shutil.which('gcloud')
-    if not gcloud_path:
+    GCLOUD_PATH = shutil.which('gcloud')
+    if not GCLOUD_PATH:
         # Homebrew
         if os.path.isfile('/opt/homebrew/share/google-cloud-sdk/bin/gcloud'):
-            return '/opt/homebrew/share/google-cloud-sdk/bin/gcloud'
+            GCLOUD_PATH = '/opt/homebrew/share/google-cloud-sdk/bin/gcloud'
         else:
             sys.exit("error: gcloud CLI could not be found")
-    else:
-        return gcloud_path
 
 def find_keytool():
     try:
@@ -100,14 +98,14 @@ def find_keytool():
         sys.exit("error: keytool or JDK could not be found")
 
 def run_apksigner(args, input=None):
-    apksigner_path = os.path.join(android_build_tools_dir, 'apksigner')
+    apksigner_path = os.path.join(ANDROID_BUILD_TOOLS, 'apksigner')
     run_args = [apksigner_path]
     run_args.extend(args)
     if input and isinstance(input, str):
         input = input.encode('utf-8')
     return subprocess.run(run_args, check=True, capture_output=True, input=input)
 
-def run_gcloud(ctx, args_, input=None):
+def run_gcloud(args_, input=None):
     run_args = [GCLOUD_PATH]
     run_args.extend(args_)
     if PROJECT:
@@ -125,61 +123,53 @@ def generate_password():
     alphabet = string.ascii_letters + string.digits
     return ''.join(secrets.choice(alphabet) for i in range(24))
 
-def get_keystore_password_path():
-    keystore_path = get_keystore_path()
+def get_keystore_password_path(name, keystore_path):
+    keystore_path = get_keystore_path(name, keystore_path)
     (root, _) = os.path.splitext(keystore_path)
     return root + '_password.enc'
 
-def get_keystore_path(ctx):
-    if ctx.obj["KEYSTORE_PATH"]:
-        return os.path.realpath(os.path.expanduser(ctx.obj["KEYSTORE_PATH"]))
-    if not ctx.obj["NAME"]:
+def get_keystore_path(name, keystore_path):
+    if keystore_path:
+        return os.path.realpath(os.path.expanduser(keystore_path))
+    if not name:
         sys.exit("error: argument --name or --keystore-path must be specified.")
-    basedir = os.path.dirname(os.path.abspath(sys.argv[0]))
-    return os.path.realpath(os.path.join(basedir, '../../secrets', ctx.obj["NAME"] + '.jks'))
+    return os.path.realpath(os.path.join(os.path.dirname(__file__), 'secrets', name + '.jks'))
 
-def get_kms_key(ctx):
-    if ctx.obj["KMS_KEY"]:
-        return ctx.obj["KMS_KEY"]
-    if not ctx.obj["NAME"]:
+def get_kms_key(name, kms_key):
+    if kms_key:
+        return kms_key
+    if not name:
         sys.exit("error: argument --name or --kms-key must be specified.")
-    return ctx.obj["NAME"]
+    return name
 
-def get_key_alias(ctx):
-    if ctx.obj["KEY_ALIAS"]:
-        return ctx.obj["KEY_ALIAS"]
-    if not ctx.obj["NAME"]:
+def get_key_alias(name, key_alias):
+    if key_alias:
+        return key_alias
+    if not name:
         sys.exit("error: argument --name or --key-alias must be specified.")
-    return ctx.obj["NAME"]
+    return name
 
-def gcloud_decrypt_keystore_password(ctx):
-    keystore_password_path = get_keystore_password_path()
-    kms_key = get_kms_key()
+def gcloud_decrypt_keystore_password(name, kms_key, keystore_path):
+    keystore_password_path = get_keystore_password_path(name, keystore_path)
+    kms_key = get_kms_key(name, kms_key)
+    client = kms.KeyManagementServiceClient()
+    key_name = client.crypto_key_path(PROJECT, KMS_LOCATION, KMS_KEYRING, kms_key)
+    with open(keystore_password_path, 'rb') as file:
+        ciphertext = file.read()
+    return client.decrypt(request={
+        'name': key_name,
+        'ciphertext': ciphertext
+    }).plaintext
 
-    try:
-        print("... decryption keystore password")
-        result = run_gcloud(['kms', 'decrypt',
-                             '--ciphertext-file', keystore_password_path,
-                             '--plaintext-file', '-',
-                             '--key', kms_key,
-                             '--location', ctx.obj["KMS_LOCATION"],
-                             '--keyring', ctx.obj["KMS_KEYRING"]])
-        return result.stdout.decode('utf-8')
-    except subprocess.CalledProcessError as e:
-        print(e.stderr.decode('utf-8'))
-        sys.exit('error: failed to decrypt keystore password')
-
-def get_keystore_password(ctx):
-    if ctx.obj["KEYSTORE_PASSWORD"]:
-        return ctx.obj["KEYSTORE_PASSWORD"]
-    return gcloud_decrypt_keystore_password()
+def get_keystore_password(name, kms_key, keystore_path, keystore_password):
+    if keystore_password:
+        return keystore_password
+    return gcloud_decrypt_keystore_password(name, kms_key, keystore_path)
 
 @click.command
 @click.pass_context
 def verify(ctx, apk):
     """Verify and show information about the APK's signing certificate"""
-
-    find_android_sdk_build_tools()
     try:
         result = run_apksigner(['verify', '-v', '--print-certs', apk])
         print(result.stdout.decode('utf-8'))
@@ -188,27 +178,19 @@ def verify(ctx, apk):
 
 @click.command
 @click.argument("apk")
-@click.pass_context
-def sign(ctx, apk):
+def sign(apk):
     """Sign the provided APK"""
-
-    find_android_sdk_build_tools()
-
     apk_signed = os.path.splitext(apk)[0] + '-signed' + os.path.splitext(apk)[1]
 
     try:
-        result = run_apksigner(['verify', '-v', '--print-certs', apk])
-        print("Current APK signer:\n")
+        result = run_apksigner(['verify', '--print-certs', apk])
+        print(f"Current signer of {apk}:")
         print(result.stdout.decode('utf-8'))
     except subprocess.CalledProcessError:
         print("Current APK signature invalid")
 
-    confirm = ask_yesno('Do you want to continue?')
-    if not confirm:
-        sys.exit("error: APK signing cancelled")
-
-    keystore_path = get_keystore_path()
-    keystore_password = get_keystore_password()
+    keystore_path = get_keystore_path(NAME, KEYSTORE_PATH)
+    keystore_password = get_keystore_password(NAME, KMS_KEY, KEYSTORE_PATH, KEYSTORE_PASSWORD)
 
     try:
         result = run_apksigner(['sign',
@@ -221,8 +203,8 @@ def sign(ctx, apk):
         sys.exit("error: failed to sign APK")
 
     try:
-        result = run_apksigner(['verify', '-v', '--print-certs', apk_signed])
-        print("New APK signer:\n")
+        result = run_apksigner(['verify', '--print-certs', apk_signed])
+        print(f"New APK signer of {apk_signed}:")
         print(result.stdout.decode('utf-8'))
     except subprocess.CalledProcessError:
         print("New APK signature invalid")
@@ -234,9 +216,8 @@ def print_cert(ctx):
 
     find_keytool()
 
-    keystore_path = get_keystore_path()
-
-    keystore_password = get_keystore_password()
+    keystore_path = get_keystore_path(NAME, KEYSTORE_PATH)
+    keystore_password = get_keystore_password(NAME, KMS_KEY, KEYSTORE_PATH, KEYSTORE_PASSWORD)
 
     if not os.path.isfile(keystore_path):
         sys.exit(f"error: keystore file not found: {keystore_path}")
@@ -259,10 +240,9 @@ def export_cert(file):
 
     find_keytool()
 
-    keystore_path = get_keystore_path()
+    keystore_path = get_keystore_path(NAME, KEYSTORE_PATH)
+    keystore_password = get_keystore_password(NAME, KMS_KEY, KEYSTORE_PATH, KEYSTORE_PASSWORD)
     key_alias = get_key_alias()
-
-    keystore_password = get_keystore_password()
 
     if not os.path.isfile(keystore_path):
         sys.exit(f"error: keystore file not found: {keystore_path}")
@@ -288,8 +268,8 @@ def create_cert(ctx):
     if ctx.obj["YES"]:
         sys.exit("error: argument --yes is not allowed when creating keystore")
 
-    keystore_path = get_keystore_path()
-    keystore_password_path = get_keystore_password_path()
+    keystore_path = get_keystore_path(NAME, KEYSTORE_PATH)
+    keystore_password_path = get_keystore_password_path(NAME, KEYSTORE_PATH)
     keystore_password = generate_password()
     kms_key = get_kms_key()
     key_alias = get_key_alias()
