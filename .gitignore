@@ -3,3 +3,4 @@ Thumbs.db
 __pycache__
 .direnv
 *.egg-info
+/tmp
