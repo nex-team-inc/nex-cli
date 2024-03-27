@@ -7,17 +7,23 @@ import shutil
 import secrets
 import string
 from google.cloud import kms
+from pyaxmlparser import APK
 
 DEFAULT_ANDROID_HOME="~/Library/Android/sdk"
 CERT_VALIDITY=9125
 
+SIGNING_CREDENTIALS = {
+    "team.nex.peppapig": "playos-apk-signer-1",
+    "x": "playos-apk-signer-2",
+}
+
 @click.group()
 @click.pass_context
 # epilog="gcloud CLI, Android Studio and JDK must be installed to use this command. Please read https://www.notion.so/nexteam/App-Signing-CLI-1f1adbc57b1348fbb8dd3b0c352ba38a for setup instructions."
-@click.option("--project", help="The Google Cloud project ID to use for KMS operations. If omitted, then the current project of glcoud CLI is assumed.")
+@click.option("--project", help="The Google Cloud project ID to use for KMS operations. If omitted, then the current project of glcoud CLI is assumed.", default="playos-signer")
 @click.option("--name", help="Name of the key. Unless otherwise specified, the name of the keystore file, and KMS key are derived from this value.")
 @click.option("--kms-key", help="KMS key ID to use for encryption and decryption.")
-@click.option("--kms-keyring", help="KMS key ring of the key.", default="nex-app-signing-keys")
+@click.option("--kms-keyring", help="KMS key ring of the key.", default="playos-app-signer")
 @click.option("--kms-location", help="KMS location of the key ring.", default="global")
 @click.option("--keystore-path", help="Path of the keystore file. Paths are relative to the \"secrets\" directory.")
 @click.option("--keystore-password", help="Password for the keystore. If omitted, uses KMS to encrypt and decrypt the keystore password.")
@@ -180,17 +186,30 @@ def verify(ctx, apk):
 @click.argument("apk")
 def sign(apk):
     """Sign the provided APK"""
+
+    metadata = APK(apk)
+
+    click.echo("Package: " + metadata.package)
+    click.echo("Version Code: " + metadata.version_code)
+    # click.echo("Signature: " + metadata.get_signature())
+    # for cert in metadata.get_certificates():
+        # click.echo("Certificate: " + cert)
+
+    name = SIGNING_CREDENTIALS.get(metadata.package)
+    if name is None:
+        raise click.ClickException("No signing credential defined for " + metadata.package)
+
     apk_signed = os.path.splitext(apk)[0] + '-signed' + os.path.splitext(apk)[1]
 
     try:
-        result = run_apksigner(['verify', '--print-certs', apk])
+        result = run_apksigner(['verify', '-v', '--print-certs', apk])
         print(f"Current signer of {apk}:")
         print(result.stdout.decode('utf-8'))
     except subprocess.CalledProcessError:
         print("Current APK signature invalid")
 
-    keystore_path = get_keystore_path(NAME, KEYSTORE_PATH)
-    keystore_password = get_keystore_password(NAME, KMS_KEY, KEYSTORE_PATH, KEYSTORE_PASSWORD)
+    keystore_path = get_keystore_path(name, KEYSTORE_PATH)
+    keystore_password = get_keystore_password(name, KMS_KEY, KEYSTORE_PATH, KEYSTORE_PASSWORD)
 
     try:
         result = run_apksigner(['sign',
@@ -203,7 +222,7 @@ def sign(apk):
         sys.exit("error: failed to sign APK")
 
     try:
-        result = run_apksigner(['verify', '--print-certs', apk_signed])
+        result = run_apksigner(['verify', '-v', '--print-certs', apk_signed])
         print(f"New APK signer of {apk_signed}:")
         print(result.stdout.decode('utf-8'))
     except subprocess.CalledProcessError:
