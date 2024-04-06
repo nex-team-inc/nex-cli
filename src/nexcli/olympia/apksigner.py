@@ -1,5 +1,4 @@
 import click
-import importlib.resources as pkg_resources
 import os.path
 import sys
 import subprocess
@@ -17,7 +16,7 @@ SIGNING_CREDENTIALS = {
     "x": "playos-apk-signer-2",
 }
 
-@click.group()
+@click.group('signapk')
 @click.pass_context
 # epilog="gcloud CLI, Android Studio and JDK must be installed to use this command. Please read https://www.notion.so/nexteam/App-Signing-CLI-1f1adbc57b1348fbb8dd3b0c352ba38a for setup instructions."
 @click.option("--project", help="The Google Cloud project ID to use for KMS operations. If omitted, then the current project of glcoud CLI is assumed.", default="playos-signer")

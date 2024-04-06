@@ -10,7 +10,9 @@ dependencies = [
     "google-auth-oauthlib>=1.2.0",
     "google-cloud-kms>=2.21",
     "requests>=2.31",
+    "requests_toolbelt>=1.0.0",
     "tqdm>=4.66",
+    "pyaxmlparser>=0.3.31",
 ]
 
 [project.scripts]

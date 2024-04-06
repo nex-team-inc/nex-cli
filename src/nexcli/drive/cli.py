@@ -3,10 +3,16 @@ from .service import create_service, extract_file_id
 import click
 import io
 
+@click.group('drive')
+def cli():
+    """Google Drive commands."""
+    pass
+
+
 @click.command()
 @click.argument('url', type=str)
 def download(url):
-    """Download a file from Google Drive given its shareable link."""
+    """Download a file from Google Drive from a shareable link."""
     file_id = extract_file_id(url)
     if not file_id:
         click.echo("Invalid Google Drive URL.", err=True)
@@ -37,3 +43,5 @@ def download(url):
 
     except Exception as error:
         raise click.ClickException(str(error))
+
+cli.add_command(download)

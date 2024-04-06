@@ -10,20 +10,15 @@ from tqdm import tqdm
 
 API_TOKEN = "882e2a898d9197fea25fda6ffff8c16b2a68956abfd275ead614496855ea4608e0ace2e06c687b25d660f3e0e56c8ccb8d3b6da25c0ab8d441a10a4087fd450258563cc9e2ae23b0c98247564443e19eaf877d5766979e174eb933ea40c752a0fb6f9f421cb531b4891077c569004aa15cf01dbf750198352af590ba85855f62"
 
-@click.group()
-@click.option("--production", is_flag=True)
-def cli(production):
-    """PlayOS CMS"""
-    global API_URL
-    API_URL = "https://cms.x.poseidon.npg.games/api" if production else "https://cms.dev.poseidon.npg.games/api"
-
 @click.command()
 @click.option('-l', '--label', required=True, help='A label for the release')
+@click.option('-p', '--production', is_flag=True)
 @click.argument("apk", type=click.Path(exists=True))
-def create_release(apk, label):
-    """Create a new release by uploading an APK."""
+def create_release(apk, label, production):
+    """Release an APK by uploading to CMS."""
 
-    click.echo(f'CMS API: {API_URL}')
+    api_url = "https://cms.x.poseidon.npg.games/api" if production else "https://cms.dev.poseidon.npg.games/api"
+    click.echo(f'CMS API: {api_url}')
 
     meta = APK(apk)
     with open(apk, 'rb') as file:
@@ -53,7 +48,7 @@ def create_release(apk, label):
         monitor = MultipartEncoderMonitor(encoder, progress_bar_callback)
 
         response = requests.post(
-            API_URL + "/releases",
+            api_url + "/releases",
             data=monitor,
             headers={
                 'Authorization': f'Bearer {API_TOKEN}',
@@ -69,5 +64,3 @@ def create_release(apk, label):
     else:
         click.echo(f'File upload failed: {response.status_code}')
         click.echo(response.text)
-
-cli.add_command(create_release)

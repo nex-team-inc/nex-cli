@@ -37,9 +37,9 @@ def find_matching_hash(range_start, range_end, search_prefix, progress):
             return string, base64_hash
     return None
 
-@click.command('decode-tracking-id')
+@click.command()
 @click.argument('track_id_prefix')
-def decode(track_id_prefix: str):
+def decode_tracking_id(track_id_prefix: str):
     """Find a device ID matching a tracking ID."""
 
     # Calculate the total number of items across all ranges
