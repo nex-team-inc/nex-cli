@@ -1,7 +1,7 @@
 [project]
-name = "olympiatools"
+name = "nexcli"
 version = "0.1.0"
-description = "Software Tools for Olympia Project"
+description = "Command line tools for Nex"
 readme = "README.md"
 requires-python = ">=3.7"
 dependencies = [
@@ -14,4 +14,4 @@ dependencies = [
 ]
 
 [project.scripts]
-olympia = "olympiatools.cli:main"
+nex = "nexcli.cli:main"

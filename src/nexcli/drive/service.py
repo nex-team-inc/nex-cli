@@ -10,8 +10,8 @@ import re
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
 
 # Path to the credentials and token files
-CREDENTIALS_FILE = pkg_resources.path('olympiatools', 'google_oauth_client_credentials.json')
-TOKEN_FILE = Path.home() / '.olympiatools/google_drive_token.json'
+CREDENTIALS_FILE = pkg_resources.path('nexcli', 'google_oauth_client_credentials.json')
+TOKEN_FILE = Path.home() / '.nexcli/google_drive_token.json'
 
 # Function to extract the file ID from a Google Drive URL
 def extract_file_id(url):

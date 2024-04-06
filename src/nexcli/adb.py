@@ -11,5 +11,5 @@ def cli():
 def scan():
     """Scan local network for adb devices."""
     # brew install arp-scan expect
-    path = pkg_resources.resource_filename('olympiatools', 'scripts/adb-scan')
+    path = pkg_resources.resource_filename('nexcli', 'scripts/adb-scan')
     subprocess.run(path, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
