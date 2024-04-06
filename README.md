@@ -24,13 +24,17 @@ This command will uninstall the current version of `nex` and reinstall the lates
 
 ## Getting Started
 
-After installation, you can run the `nex` command to see a list of available subcommands and their descriptions. To get started, you might want to configure your personal settings:
+<details>
+    <summary>Not available yet</summary>
 
-```bash
-nex config --setup
-```
+    After installation, you can run the `nex` command to see a list of available subcommands and their descriptions. To get started, you might want to configure your personal settings:
 
-This will guide you through setting up your `nex` profile.
+    ```bash
+    nex config --setup
+    ```
+
+    This will guide you through setting up your `nex` profile.
+</details>
 
 ## Usage
 
@@ -66,7 +70,7 @@ To contribute:
     pip install -e .
     ```
 
-This allows you to test your changes without needing to reinstall the package after each change.
+    This allows you to test your changes without needing to reinstall the package after each change.
 
 4. Make your changes and ensure that they are fully tested.
 
