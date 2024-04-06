@@ -18,56 +18,54 @@ def cli(production):
     API_URL = "https://cms.x.poseidon.npg.games/api" if production else "https://cms.dev.poseidon.npg.games/api"
 
 @click.command()
-@click.argument("file")
-def create_release(file):
+@click.option('-l', '--label', required=True, help='A label for the release')
+@click.argument("apk", type=click.Path(exists=True))
+def create_release(apk, label):
     """Create a new release by uploading an APK."""
 
     click.echo(f'CMS API: {API_URL}')
 
-    apk = APK(file)
-    click.echo(f'Package: {apk.package}')
-    click.echo(f'Version Code: {apk.version_code}')
-
-    md5 = hashlib.md5(open(file, 'rb').read()).hexdigest()
-    click.echo(f'MD5: {md5}')
-
-    notes = f'Uploaded via API by {getpass.getuser()}@{os.uname().nodename}. MD5={md5}'
-    click.echo(f"Notes: {notes}")
+    meta = APK(apk)
+    with open(apk, 'rb') as file:
+        md5 = hashlib.md5(file.read()).hexdigest()
+    notes = f'{label}, {apk}, md5={md5}, by {getpass.getuser()}@{os.uname().nodename} via API.'
 
     data = {
-        'packageName': apk.package,
-        'versionCode': apk.version_code,
+        'packageName': meta.package,
+        'versionCode': meta.version_code,
         'rolloutGroupMin': 1,
         'rolloutGroupMax': 100,
-    }
-
-    encoder = MultipartEncoder({
-        'data': json.dumps(data),
-        'files.apk': (os.path.basename(file), open(file, 'rb'), 'application/vnd.android.package-archive'),
         'notes': notes,
-    })
+    }
+    click.echo(json.dumps(data, indent=4))
 
-    progress_bar = tqdm(total=encoder.len, unit='iB', unit_scale=True)
-
-    def progress_bar_callback(monitor):
-        progress_bar.update(monitor.bytes_read - progress_bar.n)
-
-    monitor = MultipartEncoderMonitor(encoder, progress_bar_callback)
-
-    response = requests.post(
-        API_URL + "/releases",
-        data=monitor,
-        headers={
-            'Authorization': f'Bearer {API_TOKEN}',
-            'Content-Type': monitor.content_type,
+    with open(apk, 'rb') as file:
+        encoder = MultipartEncoder({
+            'data': json.dumps(data),
+            'files.apk': (os.path.basename(apk), file, 'application/vnd.android.package-archive'),
         })
-    
+
+        progress_bar = tqdm(total=encoder.len, unit='iB', unit_scale=True)
+
+        def progress_bar_callback(monitor):
+            progress_bar.update(monitor.bytes_read - progress_bar.n)
+
+        monitor = MultipartEncoderMonitor(encoder, progress_bar_callback)
+
+        response = requests.post(
+            API_URL + "/releases",
+            data=monitor,
+            headers={
+                'Authorization': f'Bearer {API_TOKEN}',
+                'Content-Type': monitor.content_type,
+            })
+
     progress_bar.close()
 
     if response.status_code == 200:
         res = response.json()
         release_id = res['data']['id']
-        click.echo(f'Release ID: {release_id}')
+        click.echo(f'Created release (ID={release_id})')
     else:
         click.echo(f'File upload failed: {response.status_code}')
         click.echo(response.text)
