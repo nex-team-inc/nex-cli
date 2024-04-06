@@ -9,7 +9,7 @@ Welcome to the official repository of the `nex` CLI. `nex` is a comprehensive ut
 The `nex` CLI can be installed directly from the Git repository via `pip`. To install `nex`, ensure you have Python and `pip` installed on your system, then run the following command:
 
 ```bash
-pip install git+https://github.com/nex-team-inc/nex-cli.git#egg=nexcli
+pip install git+https://github.com/nex-team-inc/nexcli.git#egg=nexcli
 ```
 
 ## Updating
@@ -17,7 +17,7 @@ pip install git+https://github.com/nex-team-inc/nex-cli.git#egg=nexcli
 The `nex` CLI does not update automatically when new changes are pushed to the Git repository. To update your installed nex tool to the latest version, you need to run the installation command again with the `--upgrade` flag:
 
 ```bash
-pip install --upgrade git+https://github.com/nex-team-inc/nex-cli.git#egg=nexcli
+pip install --upgrade git+https://github.com/nex-team-inc/nexcli.git#egg=nexcli
 ```
 
 This command will uninstall the current version of `nex` and reinstall the latest version from the Git repository.
@@ -55,7 +55,7 @@ To contribute:
 1. Clone the repository:
 
     ```bash
-    git clone https://github.com/nex-team-inc/nex-cli.git
+    git clone https://github.com/nex-team-inc/nexcli.git
     ```
 
 2. Create a new branch for your feature or fix:
@@ -96,7 +96,7 @@ To contribute:
 
 If you encounter any issues or require assistance with the `nex` CLI tool, you can:
 
-- Open an issue on the [GitHub Issue Tracker](https://github.com/nex-team-inc/nex-cli/issues).
+- Open an issue on the [GitHub Issue Tracker](https://github.com/nex-team-inc/nexcli/issues).
 - Contact the internal support team at the `#team-platform` Slack channel.
 
 Thank you for using or contributing to the `nex` CLI tool. Your efforts help improve everyone's workflow at Nex!
