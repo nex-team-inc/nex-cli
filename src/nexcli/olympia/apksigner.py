@@ -2,7 +2,6 @@ import click
 import os.path
 import sys
 import subprocess
-import shutil
 import secrets
 import string
 from google.cloud import kms
@@ -17,9 +16,7 @@ SIGNING_CREDENTIALS = {
 }
 
 @click.group('signapk')
-@click.pass_context
-# epilog="gcloud CLI, Android Studio and JDK must be installed to use this command. Please read https://www.notion.so/nexteam/App-Signing-CLI-1f1adbc57b1348fbb8dd3b0c352ba38a for setup instructions."
-@click.option("--project", help="The Google Cloud project ID to use for KMS operations. If omitted, then the current project of glcoud CLI is assumed.", default="playos-signer")
+@click.option("--project", help="The Google Cloud project ID to use for KMS operations.", default="playos-signer")
 @click.option("--name", help="Name of the key. Unless otherwise specified, the name of the keystore file, and KMS key are derived from this value.")
 @click.option("--kms-key", help="KMS key ID to use for encryption and decryption.")
 @click.option("--kms-keyring", help="KMS key ring of the key.", default="playos-app-signer")
@@ -27,11 +24,8 @@ SIGNING_CREDENTIALS = {
 @click.option("--keystore-path", help="Path of the keystore file. Paths are relative to the \"secrets\" directory.")
 @click.option("--keystore-password", help="Password for the keystore. If omitted, uses KMS to encrypt and decrypt the keystore password.")
 @click.option("--key-alias", help="Name of the signing key. If omitted, the name without extension of the keystore file will be used.")
-@click.option("--dname", help="\"distinguished name\" to use for creating signing key.")
 @click.option("--android-home", help="Path to the Android SDK installation directory (ANDROID_HOME)")
-@click.option("--gcloud-path", help="Path to the gcloud CLI")
-@click.option("--yes", "-y", help="Automatic yes to prompts; assume \"yes\" as answer to all prompts and run non-interactively.", is_flag=True)
-def cli(ctx, project, name, kms_key, kms_keyring, kms_location, keystore_path, keystore_password, key_alias, dname, android_home, gcloud_path, yes):
+def cli(project, name, kms_key, kms_keyring, kms_location, keystore_path, keystore_password, key_alias, android_home):
     """Nex Platform APK signing utility"""
     global PROJECT, NAME, KMS_KEY, KEY_ALIAS, KEYSTORE_PATH, KEYSTORE_PASSWORD, KMS_LOCATION, KMS_KEYRING
 
@@ -43,23 +37,7 @@ def cli(ctx, project, name, kms_key, kms_keyring, kms_location, keystore_path, k
     KEYSTORE_PASSWORD = keystore_password
     KMS_KEYRING = kms_keyring
     KMS_LOCATION = kms_location
-    # GCLOUD_PATH = find_gcloud(gcloud_path)
     find_android_sdk_build_tools(android_home)
-
-    ctx.ensure_object(dict)
-    ctx.obj['DNAME'] = dname
-    ctx.obj['YES'] = yes
-
-def ask_yesno(ctx, prompt, default=False):
-    if ctx.obj["YES"]:
-        return True
-    default_prompt = ' [Y/n]' if default else ' [y/N] '
-    answer = input(prompt + default_prompt)
-    if answer.lower() in ["y", "yes"]:
-        return True
-    elif answer.lower() in ["n", "no"]:
-        return False
-    return default
 
 def find_android_sdk_build_tools(android_home):
     global ANDROID_SDK, ANDROID_BUILD_TOOLS
@@ -80,22 +58,6 @@ def find_android_sdk_build_tools(android_home):
     dirs.sort(reverse=True)
     ANDROID_BUILD_TOOLS = os.path.join(tmp_build_tools_dir, dirs[0])
 
-def find_gcloud(custom_path):
-    global GCLOUD_PATH
-    if custom_path:
-        if os.path.isfile(custom_path):
-            GCLOUD_PATH = custom_path
-        else:
-            sys.exit(f"error: gcloud CLI could not be found at {custom_path}")
-
-    GCLOUD_PATH = shutil.which('gcloud')
-    if not GCLOUD_PATH:
-        # Homebrew
-        if os.path.isfile('/opt/homebrew/share/google-cloud-sdk/bin/gcloud'):
-            GCLOUD_PATH = '/opt/homebrew/share/google-cloud-sdk/bin/gcloud'
-        else:
-            sys.exit("error: gcloud CLI could not be found")
-
 def find_keytool():
     try:
         subprocess.run(['keytool'], check=True, capture_output=True)
@@ -109,15 +71,6 @@ def run_apksigner(args, input=None):
     if input and isinstance(input, str):
         input = input.encode('utf-8')
     return subprocess.run(run_args, check=True, capture_output=True, input=input)
-
-def run_gcloud(args_, input=None):
-    run_args = [GCLOUD_PATH]
-    run_args.extend(args_)
-    if PROJECT:
-        run_args.extend(['--project', PROJECT])
-    if input and isinstance(input, str):
-        input = input.encode('utf-8')
-    return subprocess.run(run_args, check=True, input=input, capture_output=True)
 
 def run_keytool(args, capture_output=True):
     run_args = ['keytool']
@@ -172,8 +125,7 @@ def get_keystore_password(name, kms_key, keystore_path, keystore_password):
     return gcloud_decrypt_keystore_password(name, kms_key, keystore_path)
 
 @click.command
-@click.pass_context
-def verify(ctx, apk):
+def verify(apk):
     """Verify and show information about the APK's signing certificate"""
     try:
         result = run_apksigner(['verify', '-v', '--print-certs', apk])
@@ -228,8 +180,7 @@ def sign(apk):
         print("New APK signature invalid")
 
 @click.command
-@click.pass_context
-def print_cert(ctx):
+def print_cert():
     """Print information about the signing certificate in the keystore file"""
 
     find_keytool()
@@ -252,7 +203,6 @@ def print_cert(ctx):
 
 @click.command
 @click.argument("file")
-@click.pass_context
 def export_cert(file):
     """Export the signing certificate in the keystore file"""
 
@@ -277,9 +227,11 @@ def export_cert(file):
         sys.exit('error: failed to create new signing certificate')
 
 @click.command
-@click.pass_context
-def create_cert(ctx):
+@click.option("--dname", help='"distinguished name" to use for creating signing key.')
+def create_cert(dname):
     """Create new APK signing certificate"""
+
+    raise click.ClickException("This command is not yet implemented")
 
     find_keytool()
 
@@ -332,8 +284,8 @@ def create_cert(ctx):
                        '-validity', str(CERT_VALIDITY),
                        '-keysize', '2048',
                        '-keyalg', 'RSA']
-        if ctx.obj["DNAME"]:
-            genkey_args.extend(['-dname', ctx.obj["DNAME"]])
+        if dname:
+            genkey_args.extend(['-dname', dname])
         run_keytool(genkey_args, capture_output=False)
     except subprocess.CalledProcessError as e:
         print(e.stderr.decode('utf-8'))
