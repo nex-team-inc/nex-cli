@@ -6,8 +6,11 @@ import secrets
 import string
 from google.cloud import kms
 from pyaxmlparser import APK
+from rich.console import Console
+from rich.table import Table
+from rich.live import Live
+from nexcli.utils.locate import find_android_build_tools
 
-DEFAULT_ANDROID_HOME="~/Library/Android/sdk"
 CERT_VALIDITY=9125
 
 SIGNING_CREDENTIALS = {
@@ -15,7 +18,7 @@ SIGNING_CREDENTIALS = {
     "x": "playos-apk-signer-2",
 }
 
-@click.group('signapk')
+@click.group('apksigner')
 @click.option("--project", help="The Google Cloud project ID to use for KMS operations.", default="playos-signer")
 @click.option("--name", help="Name of the key. Unless otherwise specified, the name of the keystore file, and KMS key are derived from this value.")
 @click.option("--kms-key", help="KMS key ID to use for encryption and decryption.")
@@ -24,8 +27,7 @@ SIGNING_CREDENTIALS = {
 @click.option("--keystore-path", help="Path of the keystore file. Paths are relative to the \"secrets\" directory.")
 @click.option("--keystore-password", help="Password for the keystore. If omitted, uses KMS to encrypt and decrypt the keystore password.")
 @click.option("--key-alias", help="Name of the signing key. If omitted, the name without extension of the keystore file will be used.")
-@click.option("--android-home", help="Path to the Android SDK installation directory (ANDROID_HOME)")
-def cli(project, name, kms_key, kms_keyring, kms_location, keystore_path, keystore_password, key_alias, android_home):
+def cli(project, name, kms_key, kms_keyring, kms_location, keystore_path, keystore_password, key_alias):
     """Nex Platform APK signing utility"""
     global PROJECT, NAME, KMS_KEY, KEY_ALIAS, KEYSTORE_PATH, KEYSTORE_PASSWORD, KMS_LOCATION, KMS_KEYRING
 
@@ -37,26 +39,6 @@ def cli(project, name, kms_key, kms_keyring, kms_location, keystore_path, keysto
     KEYSTORE_PASSWORD = keystore_password
     KMS_KEYRING = kms_keyring
     KMS_LOCATION = kms_location
-    find_android_sdk_build_tools(android_home)
-
-def find_android_sdk_build_tools(android_home):
-    global ANDROID_SDK, ANDROID_BUILD_TOOLS
-    ANDROID_SDK = DEFAULT_ANDROID_HOME
-    if android_home:
-        ANDROID_SDK = android_home
-    elif 'ANDROID_HOME' in os.environ:
-        ANDROID_SDK = os.environ['ANDROID_HOME']
-    ANDROID_SDK = os.path.expanduser(ANDROID_SDK)
-    if not os.path.isdir(ANDROID_SDK):
-        sys.exit(f"error: Android SDK path is not a directory: {ANDROID_SDK}")
-    tmp_build_tools_dir = os.path.join(ANDROID_SDK, 'build-tools')
-    if not os.path.isdir(tmp_build_tools_dir):
-        sys.exit(f"error: Android SDK does not contain build-tools: {ANDROID_SDK}")
-    dirs = os.listdir(tmp_build_tools_dir)
-    if len(dirs) == 0:
-        sys.exit("error: Android SDK build tools could not be found")
-    dirs.sort(reverse=True)
-    ANDROID_BUILD_TOOLS = os.path.join(tmp_build_tools_dir, dirs[0])
 
 def find_keytool():
     try:
@@ -64,9 +46,9 @@ def find_keytool():
     except subprocess.CalledProcessError:
         sys.exit("error: keytool or JDK could not be found")
 
-def run_apksigner(args, input=None):
-    apksigner_path = os.path.join(ANDROID_BUILD_TOOLS, 'apksigner')
-    run_args = [apksigner_path]
+def run_apksigner(*args, input=None):
+    apksigner = os.path.join(find_android_build_tools(), 'apksigner')
+    run_args = [apksigner]
     run_args.extend(args)
     if input and isinstance(input, str):
         input = input.encode('utf-8')
@@ -125,59 +107,60 @@ def get_keystore_password(name, kms_key, keystore_path, keystore_password):
     return gcloud_decrypt_keystore_password(name, kms_key, keystore_path)
 
 @click.command
+@click.argument("apk", type=click.Path(exists=True))
 def verify(apk):
-    """Verify and show information about the APK's signing certificate"""
+    """Verify the signature of an APK"""
     try:
-        result = run_apksigner(['verify', '-v', '--print-certs', apk])
-        print(result.stdout.decode('utf-8'))
+        result = run_apksigner('verify', '--print-certs', apk)
+        click.echo(result.stdout.decode('utf-8').strip())
     except subprocess.CalledProcessError as e:
-        print(e.stderr.decode('utf-8'))
+        click.echo(f'Cannot verify signature: {e.stderr.decode("utf-8")}', err=True)
 
 @click.command
-@click.argument("apk")
-def sign(apk):
-    """Sign the provided APK"""
+@click.argument("apk", type=click.Path(exists=True))
+@click.option("-o", "--output", help="Output file for the signed APK.")
+def sign(apk, output=None):
+    """Sign an APK"""
+
+    click.echo("Signing APK...")
 
     metadata = APK(apk)
-
-    click.echo("Package: " + metadata.package)
-    click.echo("Version Code: " + metadata.version_code)
-    # click.echo("Signature: " + metadata.get_signature())
-    # for cert in metadata.get_certificates():
-        # click.echo("Certificate: " + cert)
-
     name = SIGNING_CREDENTIALS.get(metadata.package)
     if name is None:
         raise click.ClickException("No signing credential defined for " + metadata.package)
 
-    apk_signed = os.path.splitext(apk)[0] + '-signed' + os.path.splitext(apk)[1]
-
+    table = Table(show_header=False, show_lines=True)
+    table.add_row("Input File", apk)
+    table.add_row("Package Name", metadata.package)
+    table.add_row("Version Code", metadata.version_code)
     try:
-        result = run_apksigner(['verify', '-v', '--print-certs', apk])
-        print(f"Current signer of {apk}:")
-        print(result.stdout.decode('utf-8'))
-    except subprocess.CalledProcessError:
-        print("Current APK signature invalid")
+        result = run_apksigner('verify', '--print-certs', apk)
+        table.add_row("Current Signature", result.stdout.decode('utf-8').strip())
+    except subprocess.CalledProcessError as e:
+        click.echo(f'Cannot verify current signature: {e.stderr.decode("utf-8")}', err=True)
 
     keystore_path = get_keystore_path(name, KEYSTORE_PATH)
     keystore_password = get_keystore_password(name, KMS_KEY, KEYSTORE_PATH, KEYSTORE_PASSWORD)
+    if output is None:
+        output = os.path.splitext(apk)[0] + '-signed' + os.path.splitext(apk)[1]
+    table.add_row("Output File", output)
 
-    try:
-        result = run_apksigner(['sign',
-                                '--ks', keystore_path,
-                                '--ks-pass', 'stdin',
-                                '--in', apk,
-                                '--out', apk_signed], input=keystore_password)
-    except subprocess.CalledProcessError as e:
-        print(e.stderr.decode('utf-8'))
-        sys.exit("error: failed to sign APK")
+    with Live(table, console=Console(), refresh_per_second=4):
+        try:
+            result = run_apksigner('sign',
+                                   '--v4-signing-enabled', 'false',
+                                   '--ks', keystore_path,
+                                   '--ks-pass', 'stdin',
+                                   '--in', apk,
+                                   '--out', output, input=keystore_password)
+        except subprocess.CalledProcessError as e:
+            raise click.ClickException("Failed to sign APK: " + e.stderr.decode('utf-8'))
 
-    try:
-        result = run_apksigner(['verify', '-v', '--print-certs', apk_signed])
-        print(f"New APK signer of {apk_signed}:")
-        print(result.stdout.decode('utf-8'))
-    except subprocess.CalledProcessError:
-        print("New APK signature invalid")
+        try:
+            result = run_apksigner('verify', '--print-certs', output)
+            table.add_row("New Signature", result.stdout.decode('utf-8').strip())
+        except subprocess.CalledProcessError as e:
+            click.echo(f'Cannot verify new signature: {e.stderr.decode("utf-8")}', err=True)
 
 @click.command
 def print_cert():
