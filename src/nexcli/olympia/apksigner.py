@@ -12,10 +12,35 @@ from rich.live import Live
 from nexcli.utils.locate import find_android_build_tools
 
 CERT_VALIDITY=9125
-
-SIGNING_CREDENTIALS = {
-    "team.nex.peppapig": "playos-apk-signer-1",
-    "x": "playos-apk-signer-2",
+INTERNAL_SIGNER = "playos-apk-signer-1"
+EXTERNAL_SIGNER = "playos-apk-signer-2"
+VALID_SIGNERS = {
+    # Internal games
+    "team.nex.arcadexp": INTERNAL_SIGNER,
+    "team.nex.archery": INTERNAL_SIGNER,
+    "team.nex.basketballknockout": INTERNAL_SIGNER,
+    "team.nex.bowling": INTERNAL_SIGNER,
+    "team.nex.brickbuster": INTERNAL_SIGNER,
+    "team.nex.bunnyhop": INTERNAL_SIGNER,
+    "team.nex.fitness": INTERNAL_SIGNER,
+    "team.nex.galaxyjumper": INTERNAL_SIGNER,
+    "team.nex.game2048": INTERNAL_SIGNER,
+    "team.nex.gokeeper": INTERNAL_SIGNER,
+    "team.nex.luminous": INTERNAL_SIGNER,
+    "team.nex.miniacs": INTERNAL_SIGNER,
+    "team.nex.party": INTERNAL_SIGNER,
+    "team.nex.peppapig": INTERNAL_SIGNER,
+    "team.nex.plane": INTERNAL_SIGNER,
+    "team.nex.posediagnostics": INTERNAL_SIGNER,
+    "team.nex.starri": INTERNAL_SIGNER,
+    "team.nex.tennis": INTERNAL_SIGNER,
+    "team.nex.tumbobots": INTERNAL_SIGNER,
+    "team.nex.whackamole": INTERNAL_SIGNER,
+    # External games
+    "team.nex.alieninvasion": EXTERNAL_SIGNER,
+    "team.nex.juglr": EXTERNAL_SIGNER,
+    "team.nex.neowitch": EXTERNAL_SIGNER,
+    "team.nex.starzzle": EXTERNAL_SIGNER,
 }
 
 @click.group('apksigner')
@@ -121,12 +146,11 @@ def verify(apk):
 @click.option("-o", "--output", help="Output file for the signed APK.")
 def sign(apk, output=None):
     """Sign an APK"""
-
     click.echo("Signing APK...")
 
     metadata = APK(apk)
-    name = SIGNING_CREDENTIALS.get(metadata.package)
-    if name is None:
+    signer = VALID_SIGNERS.get(metadata.package)
+    if signer is None:
         raise click.ClickException("No signing credential defined for " + metadata.package)
 
     table = Table(show_header=False, show_lines=True)
@@ -139,8 +163,8 @@ def sign(apk, output=None):
     except subprocess.CalledProcessError as e:
         click.echo(f'Cannot verify current signature: {e.stderr.decode("utf-8")}', err=True)
 
-    keystore_path = get_keystore_path(name, KEYSTORE_PATH)
-    keystore_password = get_keystore_password(name, KMS_KEY, KEYSTORE_PATH, KEYSTORE_PASSWORD)
+    keystore_path = get_keystore_path(signer, KEYSTORE_PATH)
+    keystore_password = get_keystore_password(signer, KMS_KEY, KEYSTORE_PATH, KEYSTORE_PASSWORD)
     if output is None:
         output = os.path.splitext(apk)[0] + '-signed' + os.path.splitext(apk)[1]
     table.add_row("Output File", output)
