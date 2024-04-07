@@ -144,7 +144,8 @@ def verify(apk):
 @click.command
 @click.argument("apk", type=click.Path(exists=True))
 @click.option("-o", "--output", help="Output file for the signed APK.")
-def sign(apk, output=None):
+@click.option("--signer", help="Use a different signer for signing.")
+def sign(apk, output=None, signer=None):
     """Sign an APK"""
     click.echo("Signing APK...")
 
@@ -155,9 +156,10 @@ def sign(apk, output=None):
         metadata = APK(apk)
 
         # Ensure a signer is defined for the package
-        signer = PACKAGE_SIGNERS.get(metadata.package)
         if signer is None:
-            raise click.ClickException("No signing credential defined for " + metadata.package)
+            signer = PACKAGE_SIGNERS.get(metadata.package)
+            if signer is None:
+                raise click.ClickException("No signing credential defined for " + metadata.package)
 
         table.add_row("Input File", apk)
         table.add_row("Package Name", metadata.package)
