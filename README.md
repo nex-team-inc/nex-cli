@@ -4,6 +4,8 @@
 
 Welcome to the official repository of the `nex` CLI. `nex` is a comprehensive utility developed in Python, designed to encapsulate a collection of useful commands for employees at Nex. It streamlines various company-specific workflows, making it an essential tool for anyone working at Nex.
 
+The tool is built using the [Click](https://click.palletsprojects.com/) library, which allows for the creation of clean and easy-to-use command line interfaces in Python. Click is a modern framework for building command line applications and provides out-of-the-box support for argument parsing, help text generation, and much more.
+
 ## Installation
 
 The `nex` CLI can be installed directly from the Git repository via `pip`. To install `nex`, ensure you have Python and `pip` installed on your system, then run the following command:
@@ -91,6 +93,52 @@ To contribute:
    ```bash
    git push origin feature/your-feature-name
    ```
+
+### Developing with Click
+
+If you're interested in contributing to the `nex` CLI, it's important to be familiar with the Click library. Click uses decorators to associate functions with command-line commands, options, and arguments. Here's a simple example of a Click command:
+
+```python
+import click
+
+@click.command()
+@click.option('--name', prompt='Your name', help='The person to greet.')
+def greet(name):
+    click.echo(f'Hello {name}!')
+
+if __name__ == '__main__':
+    greet()
+```
+
+This code defines a command line tool that asks for the user's name and then greets them. You can create complex CLI commands by stacking multiple decorators and composing commands together.
+
+For more detailed information on how to work with Click when contributing to the `nex` CLI, refer to the [Click documentation](https://click.palletsprojects.com/en/8.0.x/).
+
+### Updating `pyproject.toml`
+
+To update the `pyproject.toml` file with new dependencies or to change existing ones, follow these steps:
+
+1. Locate the `[project.dependencies]` section in the `pyproject.toml` file.
+
+2. To add a new dependency, simply append it to the list, making sure to specify the minimum version you require:
+
+   ```toml
+   dependencies = [
+       # existing dependencies
+       "new-dependency>=1.2.3",
+   ]
+   ```
+
+3. To update an existing dependency, modify the version number after the `>=` to the new desired version:
+
+   ```toml
+   dependencies = [
+       "click>=8.1",  # For example, change to "click>=8.2" if updating
+       # other dependencies
+   ]
+   ```
+
+4. After making changes to the `pyproject.toml`, test the project to ensure that the new dependencies are compatible and do not introduce any issues.
 
 ## Getting Help
 
