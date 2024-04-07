@@ -14,7 +14,7 @@ from nexcli.utils.locate import find_android_build_tools
 CERT_VALIDITY=9125
 INTERNAL_SIGNER = "playos-apk-signer-1"
 EXTERNAL_SIGNER = "playos-apk-signer-2"
-VALID_SIGNERS = {
+PACKAGE_SIGNERS = {
     # Internal games
     "team.nex.arcadexp": INTERNAL_SIGNER,
     "team.nex.archery": INTERNAL_SIGNER,
@@ -93,7 +93,7 @@ def get_keystore_password_path(name, keystore_path):
     (root, _) = os.path.splitext(keystore_path)
     return root + '_password.enc'
 
-def get_keystore_path(name, keystore_path):
+def get_keystore_path(name = None, keystore_path = None):
     if keystore_path:
         return os.path.realpath(os.path.expanduser(keystore_path))
     if not name:
@@ -126,7 +126,7 @@ def gcloud_decrypt_keystore_password(name, kms_key, keystore_path):
         'ciphertext': ciphertext
     }).plaintext
 
-def get_keystore_password(name, kms_key, keystore_path, keystore_password):
+def get_keystore_password(name = None, kms_key = None, keystore_path = None, keystore_password = None):
     if keystore_password:
         return keystore_password
     return gcloud_decrypt_keystore_password(name, kms_key, keystore_path)
@@ -148,28 +148,38 @@ def sign(apk, output=None):
     """Sign an APK"""
     click.echo("Signing APK...")
 
-    metadata = APK(apk)
-    signer = VALID_SIGNERS.get(metadata.package)
-    if signer is None:
-        raise click.ClickException("No signing credential defined for " + metadata.package)
-
     table = Table(show_header=False, show_lines=True)
-    table.add_row("Input File", apk)
-    table.add_row("Package Name", metadata.package)
-    table.add_row("Version Code", metadata.version_code)
-    try:
-        result = run_apksigner('verify', '--print-certs', apk)
-        table.add_row("Current Signature", result.stdout.decode('utf-8').strip())
-    except subprocess.CalledProcessError as e:
-        click.echo(f'Cannot verify current signature: {e.stderr.decode("utf-8")}', err=True)
+    with Live(table) as live:
 
-    keystore_path = get_keystore_path(signer, KEYSTORE_PATH)
-    keystore_password = get_keystore_password(signer, KMS_KEY, KEYSTORE_PATH, KEYSTORE_PASSWORD)
-    if output is None:
-        output = os.path.splitext(apk)[0] + '-signed' + os.path.splitext(apk)[1]
-    table.add_row("Output File", output)
+        # Read APK metadata
+        metadata = APK(apk)
 
-    with Live(table, console=Console(), refresh_per_second=4):
+        # Ensure a signer is defined for the package
+        signer = PACKAGE_SIGNERS.get(metadata.package)
+        if signer is None:
+            raise click.ClickException("No signing credential defined for " + metadata.package)
+
+        table.add_row("Input File", apk)
+        table.add_row("Package Name", metadata.package)
+        table.add_row("Version Code", metadata.version_code)        
+        live.refresh()
+
+        # Verify the current signature
+        try:
+            result = run_apksigner('verify', '--print-certs', apk)
+            table.add_row("Current Signature", result.stdout.decode('utf-8').strip())
+            live.refresh()
+        except subprocess.CalledProcessError as e:
+            click.echo(f'Cannot verify current signature: {e.stderr.decode("utf-8")}', err=True)
+
+        if output is None:
+            output = os.path.splitext(apk)[0] + '-signed' + os.path.splitext(apk)[1]
+        table.add_row("Output File", output)
+        live.refresh()
+
+        # Sign the APK
+        keystore_path = get_keystore_path(signer)
+        keystore_password = get_keystore_password(signer)
         try:
             result = run_apksigner('sign',
                                    '--v4-signing-enabled', 'false',
@@ -180,11 +190,13 @@ def sign(apk, output=None):
         except subprocess.CalledProcessError as e:
             raise click.ClickException("Failed to sign APK: " + e.stderr.decode('utf-8'))
 
+        # Verify the new signature
         try:
             result = run_apksigner('verify', '--print-certs', output)
             table.add_row("New Signature", result.stdout.decode('utf-8').strip())
+            live.refresh()
         except subprocess.CalledProcessError as e:
-            click.echo(f'Cannot verify new signature: {e.stderr.decode("utf-8")}', err=True)
+            click.echo(f'Cannot verify new signature: {e.stderr.decode("utf-8")}', err=True)        
 
 @click.command
 def print_cert():
