@@ -8,17 +8,30 @@ from pyaxmlparser import APK
 from requests_toolbelt.multipart.encoder import MultipartEncoder, MultipartEncoderMonitor
 from tqdm import tqdm
 
+from nexcli.drive.service import download
+from nexcli.olympia.apksigner import signapk
+from nexcli.utils.uri import is_google_drive_uri
+
 API_TOKEN = "882e2a898d9197fea25fda6ffff8c16b2a68956abfd275ead614496855ea4608e0ace2e06c687b25d660f3e0e56c8ccb8d3b6da25c0ab8d441a10a4087fd450258563cc9e2ae23b0c98247564443e19eaf877d5766979e174eb933ea40c752a0fb6f9f421cb531b4891077c569004aa15cf01dbf750198352af590ba85855f62"
 
 @click.command()
 @click.option('-l', '--label', required=True, help='A label for the release')
 @click.option('-p', '--production', is_flag=True)
-@click.argument("apk", type=click.Path(exists=True))
-def create_release(apk, label, production):
+@click.option('--no-sign', is_flag=True, help='Do not sign the APK')
+@click.argument("apk")
+def create_release(apk, label, production, no_sign):
     """Release an APK by uploading to CMS."""
 
+    if is_google_drive_uri(apk):
+        click.echo(f"... downloading APK from {apk}")
+        apk = download(apk)
+
+    if not no_sign:
+        click.echo("... signing APK")
+        apk = signapk(apk)
+
     api_url = "https://cms.x.poseidon.npg.games/api" if production else "https://cms.dev.poseidon.npg.games/api"
-    click.echo(f'CMS API: {api_url}')
+    click.echo(f"... uploading to CMS: {api_url}")
 
     meta = APK(apk)
     with open(apk, 'rb') as file:

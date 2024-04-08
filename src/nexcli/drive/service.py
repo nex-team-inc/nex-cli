@@ -1,10 +1,14 @@
-from google_auth_oauthlib.flow import InstalledAppFlow
+import importlib.resources as pkg_resources
+import io
+import re
+from pathlib import Path
+
 from google.auth.transport.requests import Request
 from google.oauth2.credentials import Credentials
+from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
-from pathlib import Path
-import importlib.resources as pkg_resources
-import re
+from googleapiclient.http import MediaIoBaseDownload
+from tqdm import tqdm
 
 # Scopes for Google Drive API
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
@@ -16,7 +20,10 @@ TOKEN_FILE = Path.home() / '.nexcli/google_drive_token.json'
 # Function to extract the file ID from a Google Drive URL
 def extract_file_id(url):
     match = re.search(r'/file/d/([a-zA-Z0-9_-]+)/', url)
-    return match.group(1) if match else None
+    if match:
+        return match.group(1)
+    else:
+        raise Exception(f"Invalid Google Drive URL: {url}")
 
 # Function to authenticate and create a Google Drive service
 def create_service():
@@ -33,3 +40,33 @@ def create_service():
         TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
         TOKEN_FILE.write_text(creds.to_json())
     return build('drive', 'v3', credentials=creds)
+
+# Function to download a file from Google Drive given a shareable link
+def download(url, output_file=None):
+    file_id = extract_file_id(url)
+
+    service = create_service()
+
+    # Extract the file name from the file metadata
+    file_metadata = service.files().get(fileId=file_id, supportsAllDrives=True).execute()
+    if output_file is None:
+        output_file = file_metadata.get('name', 'downloaded_file')
+
+    # Download the content
+    request = service.files().get_media(fileId=file_id)
+    fh = io.BytesIO()
+    downloader = MediaIoBaseDownload(fh, request)
+
+    with tqdm(unit='B', unit_scale=True, unit_divisor=1024) as pbar:
+        done = False
+        while not done:
+            status, done = downloader.next_chunk()
+            pbar.total = status.total_size
+            pbar.update(int(status.resumable_progress))
+
+    # Save to local file
+    with open(output_file, 'wb') as f:
+        fh.seek(0)
+        f.write(fh.read())
+
+    return output_file

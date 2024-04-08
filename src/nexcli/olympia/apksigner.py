@@ -10,6 +10,7 @@ from rich.console import Console
 from rich.live import Live
 from rich.table import Table
 from nexcli import drive
+from nexcli.drive.service import download
 from nexcli.utils.locate import find_android_build_tools
 from nexcli.utils.uri import is_google_drive_uri
 
@@ -118,15 +119,17 @@ def verify(apk):
 def sign(apk, output=None, signer=None):
     """Sign an APK"""
     if is_google_drive_uri(apk):
-        download_cmd = drive.cli.get_command(click.Context(drive.cli), 'download')
-        ctx = click.Context(download_cmd)
-        apk = ctx.invoke(download_cmd, url=apk)
+        click.echo(f"... downloading APK from {apk}")
+        apk = download(apk)
 
-    click.echo("Signing APK...")
+    click.echo("... signing APK")
 
+    signapk(apk, output, signer)
+
+
+def signapk(apk, output=None, signer=None):
     table = Table(show_header=False, show_lines=True)
     with Live(table) as live:
-
         # Read APK metadata
         metadata = APK(apk)
 
@@ -175,6 +178,8 @@ def sign(apk, output=None, signer=None):
             live.refresh()
         except subprocess.CalledProcessError as e:
             click.echo(f'Cannot verify new signature: {e.stderr.decode("utf-8")}', err=True)
+    return output
+
 
 @click.command
 @click.argument("signer")
