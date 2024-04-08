@@ -1,7 +1,6 @@
 import shutil
 import click
 import os.path
-import sys
 import subprocess
 import secrets
 import string
@@ -10,7 +9,9 @@ from pyaxmlparser import APK
 from rich.console import Console
 from rich.live import Live
 from rich.table import Table
+from nexcli import drive
 from nexcli.utils.locate import find_android_build_tools
+from nexcli.utils.uri import is_google_drive_uri
 
 CERT_VALIDITY=9125
 
@@ -111,11 +112,16 @@ def verify(apk):
         click.echo(f'Cannot verify signature: {e.stderr.decode("utf-8")}', err=True)
 
 @click.command
-@click.argument("apk", type=click.Path(exists=True))
+@click.argument("apk")
 @click.option("-o", "--output", help="Output file for the signed APK.")
 @click.option("--signer", help="Use a different signer for signing.")
 def sign(apk, output=None, signer=None):
     """Sign an APK"""
+    if is_google_drive_uri(apk):
+        download_cmd = drive.cli.get_command(click.Context(drive.cli), 'download')
+        ctx = click.Context(download_cmd)
+        apk = ctx.invoke(download_cmd, url=apk)
+
     click.echo("Signing APK...")
 
     table = Table(show_header=False, show_lines=True)

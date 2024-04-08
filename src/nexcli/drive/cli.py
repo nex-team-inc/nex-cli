@@ -15,8 +15,7 @@ def download(url):
     """Download a file from Google Drive from a shareable link."""
     file_id = extract_file_id(url)
     if not file_id:
-        click.echo("Invalid Google Drive URL.", err=True)
-        return
+        raise click.ClickException(f"Invalid Google Drive URL: {url}")
 
     try:
         service = create_service()
@@ -40,6 +39,8 @@ def download(url):
             f.write(fh.read())
 
         click.echo(f"File '{file_name}' downloaded successfully!")
+
+        return file_name
 
     except Exception as error:
         raise click.ClickException(str(error))
