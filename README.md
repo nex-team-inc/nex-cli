@@ -9,7 +9,6 @@
 Install `nex` via pip with:
 
 ```bash
-pip install --upgrade setuptools
 pip install git+https://github.com/nex-team-inc/nexcli.git#egg=nexcli
 ```
 
