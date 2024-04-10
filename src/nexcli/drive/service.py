@@ -59,10 +59,12 @@ def download(url, output_file=None):
 
     with tqdm(unit='B', unit_scale=True, unit_divisor=1024) as pbar:
         done = False
+        last_progress = 0
         while not done:
             status, done = downloader.next_chunk()
             pbar.total = status.total_size
-            pbar.update(int(status.resumable_progress))
+            pbar.update(status.resumable_progress - last_progress)
+            last_progress = status.resumable_progress
 
     # Save to local file
     with open(output_file, 'wb') as f:
