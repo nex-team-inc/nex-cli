@@ -9,7 +9,8 @@
 Install `nex` via pip with:
 
 ```bash
-pip install git+https://github.com/nex-team-inc/nexcli.git#egg=nexcli
+pip3 install --upgrade pip
+pip3 install git+https://github.com/nex-team-inc/nexcli.git#egg=nexcli
 ```
 
 ## Updating
@@ -19,7 +20,7 @@ The `nex` CLI does not update automatically when new changes are pushed to the G
 To update `nex`, run:
 
 ```bash
-pip install --upgrade git+https://github.com/nex-team-inc/nexcli.git#egg=nexcli
+pip3 install --upgrade git+https://github.com/nex-team-inc/nexcli.git#egg=nexcli
 ```
 
 ## Getting Started
@@ -50,7 +51,7 @@ Clone and set up the repo for contributions:
 ```bash
 git clone https://github.com/nex-team-inc/nexcli.git
 git checkout -b feature/your-feature-name
-pip install -e .
+pip3 install -e .
 ```
 
 Test changes, follow [Conventional Commits](https://www.conventionalcommits.org/) for messages, and submit pull requests.
