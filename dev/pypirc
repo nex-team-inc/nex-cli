@@ -1,0 +1,6 @@
+[distutils]
+index-servers =
+    nex-internal-python-repo
+
+[nex-internal-python-repo]
+repository: https://asia-python.pkg.dev/development-179808/nex-internal-python-repo/
