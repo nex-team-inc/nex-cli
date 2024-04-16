@@ -4,5 +4,13 @@
     "files.exclude": {
         "**/__pycache__": true,
         "**/*.egg-info": true,
-    }
+    },
+    "cSpell.words": [
+        "direnv",
+        "envrc",
+        "execv",
+        "nexcli",
+        "pipx",
+        "pyproject"
+    ]
 }
