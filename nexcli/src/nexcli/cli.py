@@ -5,6 +5,8 @@ import sys
 
 import click
 
+from .utils.package import is_editable
+
 
 class LazySubcommands(click.Group):
     def __init__(
@@ -56,8 +58,13 @@ main.add_command(components)
 
 @components.command
 def upgrade():
-    installed_plugins = set(plugin.dist.name for plugin in subcommands)
-    click.echo(f"Discovered plugin: {' '.join(installed_plugins)}")
+    installed_plugins = set(
+        plugin.dist.name for plugin in subcommands if not is_editable(plugin.dist)
+    )
+    if len(installed_plugins) == 0:
+        click.echo("Cannot find any upgradable plugin.")
+        return
+    click.echo(f"Discovered upgradable plugin(s): {' '.join(installed_plugins)}")
     os.execv(
         sys.executable,
         [sys.executable, "-m", "pip", "install", "--upgrade", *installed_plugins],
@@ -67,4 +74,4 @@ def upgrade():
 @components.command
 def debug():
     for plugin in subcommands:
-        click.echo(f"{plugin.name} from package {plugin.dist.name}")
+        click.echo(f"{plugin.name} from package {plugin.dist.name}{" (editable)" if is_editable(plugin.dist) else ""}")
