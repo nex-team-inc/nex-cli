@@ -16,9 +16,11 @@
         "direnv",
         "envrc",
         "execv",
+        "imgops",
         "nexcli",
         "pipx",
-        "pyproject"
+        "pyproject",
+        "RGBA"
     ],
     "[python]": {
         "editor.defaultFormatter": "ms-python.black-formatter",
