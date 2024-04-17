@@ -13,6 +13,7 @@ dependencies = [
     "google-api-python-client>=2.122",
     "google-auth-oauthlib>=1.2.0",
     "google-cloud-kms>=2.21",
+    "opensearch-py>=2.5.0",
     "requests>=2.31",
     "requests_toolbelt>=1.0.0",
     "rich>=13.7.1",
