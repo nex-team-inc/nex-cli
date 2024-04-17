@@ -2,8 +2,15 @@
 {
     // The following will hide the js and map files in the editor
     "files.exclude": {
-        "**/__pycache__": true,
-        "**/*.egg-info": true,
+        ".DS_Store": true,
+        "Thumbs.db": true,
+        "__pycache__": true,
+        ".direnv": true,
+        "*.egg-info": true,
+        "/tmp": true,
+        "/workspace": true,
+        "dist": true,
+        "nexcli/.venv/*": true
     },
     "cSpell.words": [
         "direnv",
@@ -12,5 +19,20 @@
         "nexcli",
         "pipx",
         "pyproject"
-    ]
+    ],
+    "[python]": {
+        "editor.defaultFormatter": "ms-python.black-formatter",
+        "editor.formatOnSave": true
+    },
+    "search.exclude": {
+        ".DS_Store": true,
+        "Thumbs.db": true,
+        "__pycache__": true,
+        ".direnv": true,
+        "*.egg-info": true,
+        "/tmp": true,
+        "/workspace": true,
+        "dist": true,
+        "nexcli/.venv/*": true
+    }
 }
