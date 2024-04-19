@@ -15,8 +15,8 @@ dependencies = [
     "twine>=5.0.0",
 ]
 
-[project.entry-points.'nexcli.subcommands']
-dev = "nex_dev:cli"
+[project.entry-points.'nex-dev.subcommands']
+package = "nex_dev.package:cli"
 
 [project.scripts]
-nex-dev = "nex_dev:cli"
+nex-dev = "nex_dev:main"

@@ -9,14 +9,19 @@ SRC_KEY = "src"
 DIST_KEY = "dist"
 
 
-@click.group(chain=True)
+@click.group(name="package", chain=True)
 @click.option(
     "--source",
     "-s",
     default=".",
     type=click.Path(exists=True, file_okay=False, dir_okay=True),
 )
-@click.option("--dist", default="dist", type=click.STRING)
+@click.option(
+    "--dist",
+    default="dist",
+    type=click.STRING,
+    help="The relative path to the build/distribution folder",
+)
 @click.pass_context
 def cli(ctx: click.Context, source: str, dist: str):
     """Handle various development tasks"""

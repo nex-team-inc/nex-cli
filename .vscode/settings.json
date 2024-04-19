@@ -36,5 +36,24 @@
         "/workspace": true,
         "dist": true,
         "nexcli/.venv/*": true
-    }
+    },
+    "markdownFormatter.fullWidthTurnHalfWidth": "auto",
+    "markdownFormatter.formatOpt": {
+        "indent_size": 2
+    },
+    "[markdown]": {
+        // auto save
+        "editor.formatOnSave": true,
+        // show space
+        "editor.renderWhitespace": "all",
+        "editor.quickSuggestions": {
+          "other": true,
+          "comments": true,
+          "strings": true
+        },
+        "editor.snippetSuggestions": "top",
+        "editor.tabCompletion": "on",
+        "editor.acceptSuggestionOnEnter": "on",
+        "editor.defaultFormatter": "mervin.markdown-formatter"
+      }
 }
