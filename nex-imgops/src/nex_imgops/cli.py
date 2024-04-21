@@ -1,4 +1,4 @@
-from typing import Optional
+from typing import Any, Optional, Dict
 from .transformer import Transformer
 
 import click
@@ -19,7 +19,19 @@ _dst_option = click.option(
 )
 
 
-@click.group(chain=True)
+class AliasedGroup(click.Group):
+    def __init__(self, *kargs, alias_map: Dict[str, str], **kwargs) -> None:
+        super().__init__(*kargs, **kwargs)
+        self._alias_map = alias_map
+
+    def get_command(self, ctx: click.Context, cmd_name: str) -> click.Command | None:
+        cmd_name = self._alias_map.get(
+            cmd_name, cmd_name
+        )  # Try to see if there is already a defined lookup.
+        return super().get_command(ctx, cmd_name)
+
+
+@click.group(cls=AliasedGroup, chain=True, alias_map={"extract-alpha": "alpha"})
 @_dst_option
 @click.option(
     "--input",
@@ -145,7 +157,7 @@ def pad(
     )
 
 
-@cli.command()
+@cli.command("alpha")
 @_src_option
 @_dst_option
 @click.option(
@@ -158,7 +170,7 @@ def extract_alpha(
     dst: Optional[str] = None,
     color: Optional[str] = None,
 ):
-    """Extract the alpha channel with a new color."""
+    """Extracts the alpha channel with a new color."""
     transformer: Transformer = ctx.obj
     transformer.extract_alpha(src=src, dst=dst, color=color)
 
