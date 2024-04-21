@@ -46,11 +46,13 @@ class Transformer:
         return inner
 
     def load(self, dst: Optional[str] = None, path: Optional[str] = None) -> str:
+        """Load an image to dst."""
         self._curr = _with_default_str(dst, self._curr)
         self._context[self._curr] = ops.load(path)
         return self._curr
 
     def save(self, src: Optional[str] = None, path: Optional[str] = None) -> str:
+        """Save an image from src to a file."""
         self._curr = _with_default_str(src, self._curr)
         ops.save(
             self._context[self._curr], _with_default_str(path, self.DEFAULT_OUTPUT_PATH)
@@ -59,6 +61,7 @@ class Transformer:
 
     @wrap_src_dst
     def clone(self, src: str, dst: str) -> None:
+        """Clone an image from src to dst."""
         if dst != src:
             self._context[dst] = ops.clone(self._context[src])
 
@@ -71,6 +74,7 @@ class Transformer:
         height: Optional[int] = -1,
         algorithm: Optional[str] = "auto",
     ) -> None:
+        """Resizes image to a specific width/height."""
         self._context[dst] = ops.resize(
             self._context[src], width, height, _with_default_str(algorithm, "auto")
         )
@@ -86,6 +90,7 @@ class Transformer:
         py: Optional[float] = None,
         color: Optional[str] = None,
     ) -> None:
+        """Pads pixels around the image."""
         self._context[dst] = ops.pad(
             self._context[src],
             _with_default_int(width, 0),
@@ -97,22 +102,26 @@ class Transformer:
 
     @wrap_src_dst
     def extract_alpha(self, src: str, dst: str, color: Optional[str] = None) -> None:
+        """Extracts the alpha channel with a new color."""
         self._context[dst] = ops.extract_alpha(
             self._context[src], _with_default_str(color, "FFF"), in_place=src == dst
         )
 
     @wrap_src_dst
     def dilate(self, src: str, dst: str, radius: Optional[int] = None) -> None:
+        """Dilates the image by radius."""
         self._context[dst] = ops.dilate(
             self._context[src], _with_default_int(radius, 1)
         )
 
     @wrap_src_dst
     def erode(self, src: str, dst: str, radius: Optional[int] = None) -> None:
+        """Erodes the image by radius."""
         self._context[dst] = ops.erode(self._context[src], _with_default_int(radius, 1))
 
     @wrap_src_dst
     def blur(self, src: str, dst: str, radius: Optional[int] = None) -> None:
+        """Gaussian blurs the image by radius."""
         self._context[dst] = ops.blur(self._context[src], _with_default_int(radius, 1))
 
     @wrap_src_dst
@@ -123,6 +132,7 @@ class Transformer:
         by: Optional[str] = None,
         channel: Optional[int] = None,
     ) -> None:
+        """Subtracts one image from the other."""
         by = _with_default_str(by, src)
         self._context[dst] = ops.subtract(
             self._context[src],

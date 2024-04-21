@@ -1,5 +1,6 @@
-from typing import Any, Optional, Dict
+from typing import Any, Optional, Dict, Callable
 from .transformer import Transformer
+from functools import wraps
 
 import click
 
@@ -50,34 +51,41 @@ def cli(
     transformer.load(dst=dst, path=input)
 
 
+def transformer_adaptor(func: Callable):
+    def decorator(f: Callable):
+        @click.pass_context
+        @wraps(func)
+        def wrapped(ctx: click.Context, *args, **kwargs):
+            transformer: Transformer = ctx.obj
+            func(transformer, *args, **kwargs)
+
+        return wrapped
+
+    return decorator
+
+
 @cli.command()
 @click.argument("path", type=click.Path(exists=True))
 @_dst_option
-@click.pass_context
-def load(ctx: click.Context, path: str, dst: Optional[str] = None) -> None:
-    """Load an image to dst."""
-    transformer: Transformer = ctx.obj
-    transformer.load(dst=dst, path=path)
+@transformer_adaptor(Transformer.load)
+def load():
+    pass
 
 
 @cli.command()
 @click.argument("path", type=click.Path())
 @_src_option
-@click.pass_context
-def save(ctx: click.Context, path: str, src: Optional[str] = None):
-    """Save an image from src to a file."""
-    transformer: Transformer = ctx.obj
-    transformer.save(src=src, path=path)
+@transformer_adaptor(Transformer.save)
+def save():
+    pass
 
 
 @cli.command()
 @_src_option
 @_dst_option
-@click.pass_context
-def clone(ctx: click.Context, src: Optional[str] = None, dst: Optional[str] = None):
-    """Clone an image from src to dst."""
-    transformer: Transformer = ctx.obj
-    transformer.clone(src=src, dst=dst)
+@transformer_adaptor(Transformer.clone)
+def clone():
+    pass
 
 
 @cli.command()
@@ -105,20 +113,9 @@ def clone(ctx: click.Context, src: Optional[str] = None, dst: Optional[str] = No
     ),
     default="auto",
 )
-@click.pass_context
-def resize(
-    ctx: click.Context,
-    src: Optional[str] = None,
-    dst: Optional[str] = None,
-    width: Optional[int] = None,
-    height: Optional[int] = None,
-    algorithm: Optional[str] = None,
-):
-    """Resizes image to a specific width/height."""
-    transformer: Transformer = ctx.obj
-    transformer.resize(
-        src=src, dst=dst, width=width, height=height, algorithm=algorithm
-    )
+@transformer_adaptor(Transformer.resize)
+def resize():
+    pass
 
 
 @cli.command()
@@ -127,34 +124,23 @@ def resize(
 @click.option("--width", "-w", type=click.IntRange(min=-1), default=-1)
 @click.option("--height", "-h", type=click.IntRange(min=-1), default=-1)
 @click.option(
-    "--pivot-x", "-px", type=click.FloatRange(min=0, max=1, clamp=True), default=0.5
+    "--pivot-x",
+    "-px",
+    "px",
+    type=click.FloatRange(min=0, max=1, clamp=True),
+    default=0.5,
 )
 @click.option(
-    "--pivot-y", "-py", type=click.FloatRange(min=0, max=1, clamp=True), default=0.5
+    "--pivot-y",
+    "-py",
+    "py",
+    type=click.FloatRange(min=0, max=1, clamp=True),
+    default=0.5,
 )
 @click.option("--color", "-c", type=click.STRING, default="FFF0")
-@click.pass_context
-def pad(
-    ctx: click.Context,
-    src: Optional[str] = None,
-    dst: Optional[str] = None,
-    width: Optional[int] = None,
-    height: Optional[int] = None,
-    pivot_x: Optional[float] = None,
-    pivot_y: Optional[float] = None,
-    color: Optional[str] = None,
-):
-    """Pads pixels around the image."""
-    transformer: Transformer = ctx.obj
-    transformer.pad(
-        src=src,
-        dst=dst,
-        width=width,
-        height=height,
-        px=pivot_x,
-        py=pivot_y,
-        color=color,
-    )
+@transformer_adaptor(Transformer.pad)
+def pad():
+    pass
 
 
 @cli.command("alpha")
@@ -163,16 +149,9 @@ def pad(
 @click.option(
     "--color", "-c", type=click.STRING, default="FFF", help="RGB for non-alpha channel."
 )
-@click.pass_context
-def extract_alpha(
-    ctx: click.Context,
-    src: Optional[str] = None,
-    dst: Optional[str] = None,
-    color: Optional[str] = None,
-):
-    """Extracts the alpha channel with a new color."""
-    transformer: Transformer = ctx.obj
-    transformer.extract_alpha(src=src, dst=dst, color=color)
+@transformer_adaptor(Transformer.extract_alpha)
+def extract_alpha():
+    pass
 
 
 @cli.command()
@@ -181,16 +160,9 @@ def extract_alpha(
 @click.option(
     "--radius", "-r", type=click.IntRange(min=1), default=1, help="Radius for dilation"
 )
-@click.pass_context
-def dilate(
-    ctx: click.Context,
-    src: Optional[str] = None,
-    dst: Optional[str] = None,
-    radius: Optional[int] = None,
-):
-    """Dilates the image by radius."""
-    transformer: Transformer = ctx.obj
-    transformer.dilate(src=src, dst=dst, radius=radius)
+@transformer_adaptor(Transformer.dilate)
+def dilate():
+    pass
 
 
 @cli.command()
@@ -199,16 +171,9 @@ def dilate(
 @click.option(
     "--radius", "-r", type=click.IntRange(min=1), default=1, help="Radius for erosion"
 )
-@click.pass_context
-def erode(
-    ctx: click.Context,
-    src: Optional[str] = None,
-    dst: Optional[str] = None,
-    radius: Optional[int] = None,
-):
-    """Erodes the image by radius."""
-    transformer: Transformer = ctx.obj
-    transformer.erode(src=src, dst=dst, radius=radius)
+@transformer_adaptor(Transformer.erode)
+def erode():
+    pass
 
 
 @cli.command()
@@ -221,16 +186,9 @@ def erode(
     default=1,
     help="Radius for Gaussian blur",
 )
-@click.pass_context
-def blur(
-    ctx: click.Context,
-    src: Optional[str] = None,
-    dst: Optional[str] = None,
-    radius: Optional[int] = None,
-):
-    """Gaussian blurs the image by radius."""
-    transformer: Transformer = ctx.obj
-    transformer.blur(src=src, dst=dst, radius=radius)
+@transformer_adaptor(Transformer.blur)
+def blur():
+    pass
 
 
 @cli.command()
@@ -246,14 +204,6 @@ def blur(
     default=3,
     help="The channel subtraction happens.",
 )
-@click.pass_context
-def subtract(
-    ctx: click.Context,
-    src: Optional[str] = None,
-    dst: Optional[str] = None,
-    channel: Optional[int] = None,
-    by: Optional[str] = None,
-):
-    """Subtracts one image from the other."""
-    transformer: Transformer = ctx.obj
-    transformer.subtract(src=src, dst=dst, by=by, channel=channel)
+@transformer_adaptor(Transformer.subtract)
+def subtract():
+    pass
