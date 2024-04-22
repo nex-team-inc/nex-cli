@@ -72,6 +72,16 @@ def load():
     pass
 
 
+@cli.command(name="filled")
+@_dst_option
+@click.option("--width", "-w", type=click.IntRange(min=1), default=1)
+@click.option("--height", "-h", type=click.IntRange(min=1), default=1)
+@click.option("--color", "-c", type=click.STRING, default="FFFF")
+@transformer_adaptor(Transformer.filled_rect)
+def filled():
+    pass
+
+
 @cli.command()
 @click.argument("path", type=click.Path())
 @_src_option
@@ -121,8 +131,8 @@ def resize():
 @cli.command()
 @_src_option
 @_dst_option
-@click.option("--width", "-w", type=click.IntRange(min=-1), default=-1)
-@click.option("--height", "-h", type=click.IntRange(min=-1), default=-1)
+@click.option("--width", "-w", type=int, default=0)
+@click.option("--height", "-h", type=int, default=0)
 @click.option(
     "--pivot-x",
     "-px",
@@ -188,6 +198,85 @@ def erode():
 )
 @transformer_adaptor(Transformer.blur)
 def blur():
+    pass
+
+
+@cli.command(name="rounded")
+@_src_option
+@_dst_option
+@click.option(
+    "--top-left",
+    "-tl",
+    "tl",
+    type=click.FloatRange(min=0),
+    default=1,
+    help="Top Left Radius",
+)
+@click.option(
+    "--top-right",
+    "-tr",
+    "tr",
+    type=click.FloatRange(min=0),
+    default=1,
+    help="Top Right Radius",
+)
+@click.option(
+    "--bottom-left",
+    "-bl",
+    "bl",
+    type=click.FloatRange(min=0),
+    default=1,
+    help="Bottom Left Radius",
+)
+@click.option(
+    "--bottom-right",
+    "-br",
+    "br",
+    type=click.FloatRange(min=0),
+    default=1,
+    help="Bottom Right Radius",
+)
+@click.option(
+    "--base-radius",
+    "-b",
+    "base",
+    type=click.FloatRange(min=0),
+    default=1,
+    help="The base radius, so that we can tune all 4 radius together.",
+)
+@click.option(
+    "--stroke",
+    "-s",
+    "stroke",
+    type=click.FloatRange(min=0, min_open=True),
+    default=None,
+    help="Stroke Border Width",
+)
+@click.option(
+    "--weight",
+    "-w",
+    "weight",
+    type=click.FloatRange(min=0),
+    default=1,
+    help="The relative weight between Width / Height if scale mode is relative.",
+)
+@click.option(
+    "--scale-mode",
+    "-m",
+    "scale_mode",
+    default="const",
+    type=click.Choice(("const", "rel"), case_sensitive=False),
+)
+@click.option(
+    "--falloff",
+    "-f",
+    "falloff",
+    type=click.FloatRange(min=0),
+    default=0,
+    help="The falloff fade-out.",
+)
+@transformer_adaptor(Transformer.apply_rounded_corners)
+def apply_rounded_corners():
     pass
 
 

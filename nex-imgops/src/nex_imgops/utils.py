@@ -231,7 +231,7 @@ def parse_color3(name: str) -> np.array:
     if name.startswith("#"):
         return _parse_color3(name[1:])
     elif name in COLOR_TABLE:
-        return _parse_color3(COLOR_TABLE)
+        return _parse_color3(COLOR_TABLE[name])
     else:
         return _parse_color3(name)
 
@@ -240,10 +240,16 @@ def parse_color4(name: str) -> np.array:
     if name.startswith("#"):
         return _parse_color4(name[1:])
     elif name in COLOR_TABLE:
-        return _parse_color4(COLOR_TABLE)
+        return _parse_color4(COLOR_TABLE[name])
     else:
         return _parse_color4(name)
 
 
 def create_single_white_pixel() -> np.array:
     return np.array([255, 255, 255, 255], dtype=np.uint8).reshape((1, 1, 4))
+
+
+def create_filled_rect(width: int, height: int, color: np.array) -> np.array:
+    ret = np.zeros((height, width, 4), dtype=np.uint8)
+    ret[:, :, :] = color
+    return ret

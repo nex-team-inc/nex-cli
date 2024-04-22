@@ -35,7 +35,7 @@ class Transformer:
             *kargs,
             src: Optional[str] = None,
             dst: Optional[str] = None,
-            **kwargs
+            **kwargs,
         ):
             src = _with_default_str(src, self._curr)
             dst = _with_default_str(dst, src)
@@ -56,6 +56,22 @@ class Transformer:
         self._curr = _with_default_str(src, self._curr)
         ops.save(
             self._context[self._curr], _with_default_str(path, self.DEFAULT_OUTPUT_PATH)
+        )
+        return self._curr
+
+    def filled_rect(
+        self,
+        dst: Optional[str] = None,
+        width: Optional[int] = 1,
+        height: Optional[int] = 1,
+        color: Optional[str] = "white",
+    ) -> str:
+        """Create a filled rect with the given dimension"""
+        self._curr = _with_default_str(dst, self._curr)
+        self._context[self._curr] = ops.filled_rect(
+            _with_default_int(width, 1),
+            _with_default_int(height, 1),
+            _with_default_str(color, "white"),
         )
         return self._curr
 
@@ -123,6 +139,42 @@ class Transformer:
     def blur(self, src: str, dst: str, radius: Optional[int] = None) -> None:
         """Gaussian blurs the image by radius."""
         self._context[dst] = ops.blur(self._context[src], _with_default_int(radius, 1))
+
+    @wrap_src_dst
+    def apply_rounded_corners(
+        self,
+        src: str,
+        dst: str,
+        tl: Optional[float] = 1,
+        tr: Optional[float] = 1,
+        bl: Optional[float] = 1,
+        br: Optional[float] = 1,
+        base: Optional[float] = 1,
+        stroke: Optional[float] = None,
+        weight: Optional[float] = 0,
+        scale_mode: Optional[str] = "const",
+        falloff: Optional[float] = 0,
+    ):
+        img = self._context[src]
+        (height, width, _) = img.shape
+        scale_mode = _with_default_str(scale_mode, "const")
+        if scale_mode == "rel":
+            scale = width + (height - width) * _with_default_float(weight, 0)
+        else:
+            scale = 1
+        if stroke is None:
+            stroke = max(width, height)
+        else:
+            stroke = max(stroke, 0) * scale
+        self._context[dst] = ops.apply_rounded_corners(
+            img,
+            _with_default_float(tl, 1) * base * scale,
+            _with_default_float(tr, 1) * base * scale,
+            _with_default_float(bl, 1) * base * scale,
+            _with_default_float(br, 1) * base * scale,
+            stroke,
+            _with_default_float(falloff, 0),
+        )
 
     @wrap_src_dst
     def subtract(
