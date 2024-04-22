@@ -12,6 +12,9 @@ dependencies = [
     "click>=8.1",
     "keyring>=25.1.0",
     "keyrings.google-artifactregistry-auth>=1.1.2",
+    "google-cloud-artifact-registry>=1.11.3",
+    "semver>=3.0.2",
+    "tomlkit>=0.12.4",
     "twine>=5.0.0",
 ]
 

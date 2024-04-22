@@ -1,10 +1,17 @@
 import click
+from google.cloud import artifactregistry
 import os.path
+from semver import Version
 from shutil import rmtree
-import sys
 import subprocess
+import sys
+from tomlkit import load, dump
+from typing import Optional, AbstractSet
 
-REPO_URL = "https://asia-python.pkg.dev/development-179808/nex-internal-python-repo/"
+LOCATION = "asia"
+PROJECT_ID = "development-179808"
+REPOSITORY = "nex-internal-python-repo"
+REPO_URL = f"https://{LOCATION}-python.pkg.dev/{PROJECT_ID}/{REPOSITORY}/"
 SRC_KEY = "src"
 DIST_KEY = "dist"
 
@@ -66,3 +73,59 @@ def upload(ctx: click.Context):
             *[os.path.join(dist_dir, name) for name in os.listdir(dist_dir)],
         ]
     )
+
+
+@cli.command("bump")
+@click.option(
+    "--part",
+    "-p",
+    type=click.Choice(("major", "minor", "patch", "prerelease"), case_sensitive=False),
+    default="patch",
+)
+@click.option(
+    "--remote/--no-remote",
+    "-r",
+    default=True,
+)
+@click.pass_context
+def increment_version(
+    ctx: click.Context, part: Optional[str] = "patch", remote: bool = True
+):
+    config_path = os.path.join(ctx.obj[SRC_KEY], "pyproject.toml")
+    with open(config_path, "rb") as file:
+        doc = load(file)
+    project_name = doc["project"]["name"]
+    curr_version = Version.parse(doc["project"].get("version", "0.0.0"))
+    existing_versions = (
+        _list_versions(project_name) if remote else set((str(curr_version),))
+    )
+    # Let's start bumping.
+    while str(curr_version) in existing_versions:
+        curr_version = curr_version.next_version(part)
+
+    print(curr_version)
+
+    doc["project"]["version"] = str(curr_version)
+    with open(config_path, "w") as file:
+        dump(doc, file)
+
+
+def _list_versions(package_name: str) -> AbstractSet[str]:
+    client = artifactregistry.ArtifactRegistryClient()
+    ret = set()
+    page_token = None
+    parent_path = client.package_path(PROJECT_ID, LOCATION, REPOSITORY, package_name)
+    while True:
+        request = artifactregistry.ListVersionsRequest(
+            parent=parent_path, page_token=page_token
+        )
+        response = client.list_versions(request)
+        ret.update(
+            client.parse_version_path(version.name)["version"]
+            for version in response.versions
+        )
+        page_token = response.next_page_token
+        if not page_token:
+            break
+
+    return ret
