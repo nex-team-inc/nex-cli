@@ -1,4 +1,4 @@
-from importlib.metadata import Distribution
+from importlib.metadata import Distribution, PackageNotFoundError
 from json import loads
 
 
@@ -11,3 +11,12 @@ def is_editable(pkg: Distribution) -> bool:
     if dir_info is None:
         return False
     return dir_info.get("editable", False)
+
+
+def is_valid_package_for_install(pkg_name: str) -> bool:
+    """Checks if a package name is available for install."""
+    try:
+        pkg = Distribution.from_name(pkg_name)
+        return not is_editable(pkg)
+    except PackageNotFoundError:
+        return True

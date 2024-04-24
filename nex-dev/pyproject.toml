@@ -20,6 +20,7 @@ dependencies = [
 
 [project.entry-points.'nex-dev.subcommands']
 package = "nex_dev.package:cli"
+discover = "nex_dev.discover:cli"
 
 [project.scripts]
 nex-dev = "nex_dev:main"

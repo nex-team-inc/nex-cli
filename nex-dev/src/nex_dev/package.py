@@ -1,17 +1,15 @@
 import click
-from google.cloud import artifactregistry
 import os.path
 from semver import Version
 from shutil import rmtree
 import subprocess
 import sys
 from tomlkit import load, dump
-from typing import Optional, AbstractSet
+from typing import Optional
 
-LOCATION = "asia"
-PROJECT_ID = "development-179808"
-REPOSITORY = "nex-internal-python-repo"
-REPO_URL = f"https://{LOCATION}-python.pkg.dev/{PROJECT_ID}/{REPOSITORY}/"
+from .constants import REPO_URL
+from .utils import list_versions
+
 SRC_KEY = "src"
 DIST_KEY = "dist"
 
@@ -97,7 +95,7 @@ def increment_version(
     project_name = doc["project"]["name"]
     curr_version = Version.parse(doc["project"].get("version", "0.0.0"))
     existing_versions = (
-        _list_versions(project_name) if remote else set((str(curr_version),))
+        list_versions(project_name) if remote else set((str(curr_version),))
     )
     # Let's start bumping.
     while str(curr_version) in existing_versions:
@@ -106,24 +104,3 @@ def increment_version(
     doc["project"]["version"] = str(curr_version)
     with open(config_path, "w") as file:
         dump(doc, file)
-
-
-def _list_versions(package_name: str) -> AbstractSet[str]:
-    client = artifactregistry.ArtifactRegistryClient()
-    ret = set()
-    page_token = None
-    parent_path = client.package_path(PROJECT_ID, LOCATION, REPOSITORY, package_name)
-    while True:
-        request = artifactregistry.ListVersionsRequest(
-            parent=parent_path, page_token=page_token
-        )
-        response = client.list_versions(request)
-        ret.update(
-            client.parse_version_path(version.name)["version"]
-            for version in response.versions
-        )
-        page_token = response.next_page_token
-        if not page_token:
-            break
-
-    return ret

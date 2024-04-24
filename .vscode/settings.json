@@ -20,7 +20,8 @@
         "nexcli",
         "pipx",
         "pyproject",
-        "RGBA"
+        "RGBA",
+        "tomlkit"
     ],
     "[python]": {
         "editor.defaultFormatter": "ms-python.black-formatter",
