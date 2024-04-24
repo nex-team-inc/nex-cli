@@ -16,6 +16,10 @@ def _with_default_float(value: Optional[float], default_value: float) -> float:
     return default_value if value is None else value
 
 
+def _with_default_bool(value: Optional[bool], default_value: bool) -> bool:
+    return default_value if value is None else value
+
+
 class Transformer:
     DEFAULT_SRC = "img"
     DEFAULT_OUTPUT_PATH = "out.png"
@@ -177,6 +181,13 @@ class Transformer:
         )
 
     @wrap_src_dst
+    def tint(self, src: str, dst: str, color: Optional[str] = None) -> None:
+        """Tint the whole picture by the given color."""
+        self._context[dst] = ops.tint(
+            self._context[src], _with_default_str(color, "white"), src == dst
+        )
+
+    @wrap_src_dst
     def subtract(
         self,
         src: str,
@@ -190,5 +201,42 @@ class Transformer:
             self._context[src],
             self._context[by],
             _with_default_int(channel, 3),
+            src == dst,
+        )
+
+    @wrap_src_dst
+    def multiply(self, src: str, dst: str, by: Optional[str] = None) -> None:
+        """Multiply two images together."""
+        by = _with_default_str(by, src)
+        self._context[dst] = ops.multiply(
+            self._context[src], self._context[by], src == dst
+        )
+
+    @wrap_src_dst
+    def flip(
+        self,
+        src: str,
+        dst: str,
+        horizontal: Optional[bool] = None,
+        vertical: Optional[bool] = None,
+    ) -> None:
+        self._context[dst] = ops.flip(
+            self._context[src],
+            _with_default_bool(horizontal, False),
+            _with_default_bool(vertical, False),
+            src == dst,
+        )
+
+    @wrap_src_dst
+    def rotate(
+        self,
+        src: str,
+        dst: str,
+        left: Optional[int] = None,
+        right: Optional[int] = None,
+    ) -> None:
+        self._context[dst] = ops.rotate(
+            self._context[src],
+            _with_default_int(left, 0) - _with_default_int(right, 0),
             src == dst,
         )

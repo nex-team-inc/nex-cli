@@ -76,7 +76,13 @@ def load():
 @_dst_option
 @click.option("--width", "-w", type=click.IntRange(min=1), default=1)
 @click.option("--height", "-h", type=click.IntRange(min=1), default=1)
-@click.option("--color", "-c", type=click.STRING, default="FFFF")
+@click.option(
+    "--color",
+    "-c",
+    type=click.STRING,
+    default="FFFF",
+    help="Base color of the filled rect.",
+)
 @transformer_adaptor(Transformer.filled_rect)
 def filled():
     pass
@@ -283,6 +289,15 @@ def apply_rounded_corners():
 @cli.command()
 @_src_option
 @_dst_option
+@click.option("--color", "-c", type=click.STRING, default="FFFF", help="Tint color")
+@transformer_adaptor(Transformer.tint)
+def tint():
+    pass
+
+
+@cli.command()
+@_src_option
+@_dst_option
 @click.option(
     "--by", "-b", type=click.STRING, default=None, help="The Subtrahend data."
 )
@@ -295,4 +310,53 @@ def apply_rounded_corners():
 )
 @transformer_adaptor(Transformer.subtract)
 def subtract():
+    pass
+
+
+@cli.command()
+@_src_option
+@_dst_option
+@click.option(
+    "--by", "-b", type=click.STRING, default=None, help="The multiplying matrix."
+)
+@transformer_adaptor(Transformer.multiply)
+def multiply():
+    pass
+
+
+@cli.command()
+@_src_option
+@_dst_option
+@click.option(
+    "--horizontal", "-h", is_flag=True, default=False, help="Flip horizontally."
+)
+@click.option("--vertical", "-v", is_flag=True, default=False, help="Flip vertically.")
+@transformer_adaptor(Transformer.flip)
+def flip():
+    pass
+
+
+@cli.command()
+@_src_option
+@_dst_option
+@click.pass_context
+def vflip(ctx: click.Context, src: Optional[str] = None, dst: Optional[str] = None):
+    ctx.invoke(flip, src=src, dst=dst, horizontal=False, vertical=True)
+
+
+@cli.command()
+@_src_option
+@_dst_option
+@click.pass_context
+def hflip(ctx: click.Context, src: Optional[str] = None, dst: Optional[str] = None):
+    ctx.invoke(flip, src=src, dst=dst, horizontal=True, vertical=False)
+
+
+@cli.command()
+@_src_option
+@_dst_option
+@click.option("--left", "-l", count=True)
+@click.option("--right", "-r", count=True)
+@transformer_adaptor(Transformer.rotate)
+def rotate():
     pass

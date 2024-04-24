@@ -235,9 +235,46 @@ def apply_rounded_corners(
     return ret
 
 
+def tint(src: np.array, color: str, in_place: bool = False) -> np.array:
+    ret = _clone_if_not_in_place(src, in_place)
+    color4 = parse_color4(color)
+    cv2.multiply(src, color4.reshape((4,)), ret, scale=1 / 255)
+    return ret
+
+
 def subtract(
     src: np.array, by: np.array, channel: int = 3, in_place: bool = False
 ) -> np.array:
     ret = _clone_if_not_in_place(src, in_place)
     ret[:, :, channel] -= by[:, :, channel]
     return ret
+
+
+def multiply(src: np.array, by: np.array, in_place: bool = False) -> np.array:
+    ret = _clone_if_not_in_place(src, in_place)
+    cv2.multiply(src, by, ret, scale=1 / 255)
+    return ret
+
+
+def flip(
+    src: np.array, horizontal: bool, vertical: bool, in_place: bool = False
+) -> np.array:
+    if horizontal:
+        if vertical:
+            return np.flip(src, (0, 1))
+        else:
+            return np.flip(src, 1)
+    else:
+        if vertical:
+            return np.flip(src, 0)
+        else:
+            return src if in_place else src.copy()
+
+
+def rotate(src: np.array, ccw: int, in_place: bool) -> np.array:
+    """Rotate the src image by ccw times ccw."""
+    ccw %= 4  # This is either 0, 1, 2, 3
+    if ccw == 0:
+        return src if in_place else src.copy()
+    else:
+        return np.rot90(src, ccw, axes=(0, 1))
