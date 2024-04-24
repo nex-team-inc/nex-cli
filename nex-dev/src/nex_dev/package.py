@@ -103,8 +103,6 @@ def increment_version(
     while str(curr_version) in existing_versions:
         curr_version = curr_version.next_version(part)
 
-    print(curr_version)
-
     doc["project"]["version"] = str(curr_version)
     with open(config_path, "w") as file:
         dump(doc, file)
