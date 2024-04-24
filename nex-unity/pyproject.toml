@@ -1,0 +1,18 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nex-unity"
+version = "0.0.1"
+description = "Utilities for Unity usage in Nex."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "click>=8.1",
+    "nex-kms>=0.0.1",
+    "nexcli>=0.1.5",
+]
+
+[project.entry-points.'nexcli.subcommands']
+unity = "nex_unity:cli"
