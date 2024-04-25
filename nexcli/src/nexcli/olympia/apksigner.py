@@ -35,6 +35,7 @@ PACKAGE_SIGNERS = {
     "team.nex.galaxyjumper": INTERNAL_SIGNER,
     "team.nex.game2048": INTERNAL_SIGNER,
     "team.nex.gokeeper": INTERNAL_SIGNER,
+    "team.nex.hippos": INTERNAL_SIGNER,
     "team.nex.luminous": INTERNAL_SIGNER,
     "team.nex.miniacs": INTERNAL_SIGNER,
     "team.nex.party": INTERNAL_SIGNER,
