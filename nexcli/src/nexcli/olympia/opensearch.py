@@ -1,6 +1,7 @@
 import os
 import click
 from opensearchpy import OpenSearch
+from opensearch_dsl import Search, Q
 
 @click.group('opensearch')
 def cli():
@@ -8,12 +9,14 @@ def cli():
     pass
 
 @click.command()
-def search():
-    """[WIP] Search for logs in OpenSearch."""
+@click.argument('device_id')
+@click.option('-p', '--password', required=True, help='Password for OpenSearch.')
+def search(device_id, password):
+    """Search for an eng device logs in OpenSearch."""
     host = 'os.dev.poseidon.npg.games'
     port = 443
     index_name = 'android-logs-eng-*'
-    auth = ('nex-support', os.environ.get('PASSWORD'))
+    auth = ('nex-support', password)
 
     # Creating OS client.
     client = OpenSearch(
@@ -22,28 +25,26 @@ def search():
         use_ssl=True,
     )
 
-    # This is a query example. This example returns 20 last messages which has field "fields.SubscriptionId" with value "26738458705".
-    query = {
-        'size': 20,
-        'query': {
-            "match": {
-                "query": "Permission violation"
-                # "fields.SubscriptionId": {
-                #     "query": "26738458705"
-                # }
-            }
-        }
-    }
+    query = Q("match", deviceId=device_id) & Q("range", **{"@timestamp": {"gte": "now-1d", "lte": "now"}})
+    search = Search(using=client, index=index_name)
+    search = search.query(query)
+    search = search.sort('@timestamp')
 
-    # Executing query.
-    response = client.search(
-        body=query,
-        index=index_name
-    )
+    start = 0
+    page_size = 2500
+    results = []
+    while True:
+        search = search[start:start + page_size]
+        results = search.execute()
 
-    print('\nSearch results:')
-    # Iterating through result and printing message field value to console
-    for hit in response['hits']['hits']:
-        print('message: ', hit['_source']['message'])
+        if not results.hits:
+            break
+
+        for hit in results.hits:
+            timestamp = getattr(hit, "@timestamp")
+            click.echo(f"{timestamp} {hit.pid: >5d} {hit.tid: >5d} {hit.level[0].capitalize()} {hit.tag}: {hit.message}")
+
+        start += page_size
+
 
 cli.add_command(search)
