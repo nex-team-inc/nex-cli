@@ -31,7 +31,7 @@ def search(device_id, password):
     search = search.sort('@timestamp')
 
     start = 0
-    page_size = 2500
+    page_size = 500
     results = []
     while True:
         search = search[start:start + page_size]
