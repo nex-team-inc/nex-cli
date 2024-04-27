@@ -9,6 +9,7 @@ description = "Command line tools for Nex"
 readme = "README.md"
 requires-python = ">=3.10"
 dependencies = [
+    "boto3>=1.34.85",
     "click>=8.1",
     "google-api-python-client>=2.122",
     "google-auth-oauthlib>=1.2.0",
@@ -16,6 +17,7 @@ dependencies = [
     "opensearch-dsl>=2.1.0",
     "opensearch-py>=2.5.0",
     "requests>=2.31",
+    "requests-aws4auth>=1.2.3",
     "requests_toolbelt>=1.0.0",
     "rich>=13.7.1",
     "tqdm>=4.66",
