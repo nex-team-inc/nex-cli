@@ -1,7 +1,7 @@
 import click
-from nexcli.olympia import bugreport
+from nexcli.olympia import diag
 
-from . import apksigner, cms, deviceid, devicelog
+from . import apksigner, cms, deviceid
 
 
 @click.group("olympia")
@@ -13,5 +13,4 @@ def cli():
 cli.add_command(deviceid.decode_tracking_id)
 cli.add_command(cms.create_release, "release-apk")
 cli.add_command(apksigner.cli)
-cli.add_command(devicelog.getlog)
-cli.add_command(bugreport.cli)
+cli.add_command(diag.cli)
