@@ -9,17 +9,57 @@ from requests_toolbelt.multipart.encoder import (
     MultipartEncoder,
     MultipartEncoderMonitor,
 )
+from rich.table import Table
 from tqdm import tqdm
 
 from nexcli.drive.service import download
 from nexcli.olympia.apksigner import signapk
 from nexcli.utils.uri import is_google_drive_uri
 
-API_TOKEN = "882e2a898d9197fea25fda6ffff8c16b2a68956abfd275ead614496855ea4608e0ace2e06c687b25d660f3e0e56c8ccb8d3b6da25c0ab8d441a10a4087fd450258563cc9e2ae23b0c98247564443e19eaf877d5766979e174eb933ea40c752a0fb6f9f421cb531b4891077c569004aa15cf01dbf750198352af590ba85855f62"
+if False:
+    import http.client as http_client
+
+    http_client.HTTPConnection.debuglevel = 1
+
+    import logging
+
+    logging.basicConfig()
+    logging.getLogger().setLevel(logging.DEBUG)
+    requests_log = logging.getLogger("requests.packages.urllib3")
+    requests_log.setLevel(logging.DEBUG)
+    requests_log.propagate = True
+
+CMS_HOST_PROD = "cms.x.poseidon.npg.games"  # TODO: replace with real one
+CMS_HOST_DEV = "cms.dev.poseidon.npg.games"
 ALLOWED_APK_PUBLIC_KEYS = [
     "2fa50246e4c67b1c88850e84cb28132422527865d3470072cb21636d876d41dd",
     "74f0220efac6d374d25412656d2a024a76060145c7ebe2a32471b67c32ff9aad",
 ]
+
+
+def cms_hostname(is_prod):
+    return CMS_HOST_PROD if is_prod else CMS_HOST_DEV
+
+
+def cms_api(is_prod):
+    return f"https://{cms_hostname(is_prod)}/api"
+
+
+def token_file_path(is_prod):
+    return os.path.expanduser(
+        "~/.nexcli/olympia_cms_api_token_" + cms_hostname(is_prod)
+    )
+
+
+def get_token(is_prod):
+    with open(token_file_path(is_prod), "r") as file:
+        return file.read().strip()
+
+
+def set_token(is_prod, token):
+    os.makedirs(os.path.dirname(token_file_path(is_prod)), exist_ok=True)
+    with open(token_file_path(is_prod), "w") as file:
+        file.write(token)
 
 
 def check_signature(apk):
@@ -49,15 +89,25 @@ def check_signature(apk):
 @click.group("cms")
 def cli():
     """CMS commands."""
+    pass
+
+
+@click.command()
+@click.argument("token")
+@click.option("-p", "--production", "is_prod", is_flag=True)
+def auth(token, is_prod):
+    """Setup API authorization token."""
+
+    set_token(is_prod, token)
 
 
 @click.command()
 @click.option("-l", "--label", required=True, help="A label for the release")
-@click.option("-p", "--production", is_flag=True)
+@click.option("-p", "--production", "is_prod", is_flag=True)
 @click.option("--no-sign", is_flag=True, help="Do not sign the APK")
 @click.argument("apk")
-def release(apk, label, production, no_sign):
-    """Release an APK by uploading to CMS."""
+def publish(apk, label, is_prod, no_sign):
+    """Publish (release) an APK by uploading to CMS."""
 
     if is_google_drive_uri(apk):
         click.echo(f"... downloading APK from {apk}")
@@ -67,15 +117,12 @@ def release(apk, label, production, no_sign):
         click.echo("... signing APK")
         apk = signapk(apk)
 
-    if production:
+    if is_prod:
         click.echo("... checking APK signature")
         check_signature(apk)
 
-    api_url = (
-        "https://cms.x.poseidon.npg.games/api"
-        if production
-        else "https://cms.dev.poseidon.npg.games/api"
-    )
+    api_url = cms_api(is_prod)
+    api_token = get_token(is_prod)
     click.echo(f"... uploading to CMS: {api_url}")
 
     meta = APK(apk)
@@ -115,7 +162,7 @@ def release(apk, label, production, no_sign):
             api_url + "/releases",
             data=monitor,
             headers={
-                "Authorization": f"Bearer {API_TOKEN}",
+                "Authorization": f"Bearer {api_token}",
                 "Content-Type": monitor.content_type,
             },
         )
@@ -131,4 +178,63 @@ def release(apk, label, production, no_sign):
         click.echo(response.text)
 
 
-cli.add_command(release)
+@click.command()
+@click.argument("pkg_name")
+@click.option(
+    "-a", "--all", is_flag=True, help="List all releases, including inactive ones."
+)
+@click.option(
+    "-e", "--environment", help="Include only releases in a specific environment."
+)
+@click.option("-p", "--production", "is_prod", is_flag=True)
+def list(pkg_name, all, environment, is_prod):
+    """List releases in CMS."""
+
+    api_url = cms_api(is_prod)
+    api_token = get_token(is_prod)
+
+    params = {
+        "sort[0]": "versionCode:desc",
+        "filters[packageName][$eq]": pkg_name,
+    }
+    if environment:
+        params["filters[environments][$eq]"] = environment
+
+    res = requests.get(
+        api_url + "/releases",
+        params=params,
+        headers={
+            "Authorization": f"Bearer {api_token}",
+        },
+    )
+
+    if res.status_code != 200:
+        # print(res.headers)
+        message = res.json().get("error", {}).get("message", res.text)
+        raise click.ClickException(f"{res.status_code} {message}")
+
+    data = res.json()
+
+    if data.meta.pageCount > 1:
+        click.echo(f"... showing first {data.meta.pageSize}")
+
+    table = Table(show_header=True)
+    table.add_column("Package Name")
+    table.add_column("Version Code")
+    table.add_column("Rollout Group")
+    table.add_column("Environment(s)")
+    table.add_column("Notes")
+    for item in data.data:
+        table.add_row(
+            item.attributes.packageName,
+            item.attributes.versionCode,
+            f"{item.attributes.rolloutGroupMin}-{item.attributes.rolloutGroupMax}",
+            ", ".join(item.attributes.environments),
+            item.attributes.notes,
+        )
+    table.print()
+
+
+cli.add_command(auth)
+cli.add_command(list)
+cli.add_command(publish)
