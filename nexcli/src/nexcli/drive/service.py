@@ -14,8 +14,10 @@ from tqdm import tqdm
 SCOPES = ["https://www.googleapis.com/auth/drive.readonly"]
 
 # Path to the credentials and token files
-CREDENTIALS_FILE = pkg_resources.path("nexcli", "google_oauth_client_credentials.json")
-TOKEN_FILE = Path.home() / ".nexcli/google_drive_token.json"
+OAUTH_CLIENT_CREDENTIALS = pkg_resources.path(
+    "nexcli", "google_oauth_client_credentials.json"
+)
+USER_AUTH_TOKEN = Path.home() / ".nexcli/google_drive_token.json"
 
 
 # Function to extract the file ID from a Google Drive URL
@@ -30,17 +32,17 @@ def extract_file_id(url):
 # Function to authenticate and create a Google Drive service
 def create_service():
     creds = None
-    if TOKEN_FILE.exists():
-        creds = Credentials.from_authorized_user_file(str(TOKEN_FILE), SCOPES)
+    if USER_AUTH_TOKEN.exists():
+        creds = Credentials.from_authorized_user_file(str(USER_AUTH_TOKEN), SCOPES)
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
             creds.refresh(Request())
         else:
-            with CREDENTIALS_FILE as file:
+            with OAUTH_CLIENT_CREDENTIALS as file:
                 flow = InstalledAppFlow.from_client_secrets_file(file, SCOPES)
                 creds = flow.run_local_server(port=0)
-        TOKEN_FILE.parent.mkdir(parents=True, exist_ok=True)
-        TOKEN_FILE.write_text(creds.to_json())
+        USER_AUTH_TOKEN.parent.mkdir(parents=True, exist_ok=True)
+        USER_AUTH_TOKEN.write_text(creds.to_json())
     return build("drive", "v3", credentials=creds)
 
 
