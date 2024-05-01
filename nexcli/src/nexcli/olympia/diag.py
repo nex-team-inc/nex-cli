@@ -57,7 +57,7 @@ def os_client(password):
 
 @click.group("diag")
 def cli():
-    """Access diagnostic data of devices."""
+    """Online diagnostic data commands."""
     pass
 
 
