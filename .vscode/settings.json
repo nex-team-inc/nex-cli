@@ -2,15 +2,15 @@
 {
     // The following will hide the js and map files in the editor
     "files.exclude": {
-        ".DS_Store": true,
-        "Thumbs.db": true,
-        "__pycache__": true,
         ".direnv": true,
+        ".DS_Store": true,
         "*.egg-info": true,
+        "**/__pycache__": true,
         "/tmp": true,
         "/workspace": true,
         "dist": true,
-        "nexcli/.venv/*": true
+        "nexcli/.venv/*": true,
+        "Thumbs.db": true
     },
     "cSpell.words": [
         "direnv",
