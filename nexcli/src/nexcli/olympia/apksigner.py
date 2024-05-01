@@ -121,7 +121,7 @@ def get_keystore_password(name):
 def verify(apk):
     """Verify the signature of an APK"""
     try:
-        result = run_apksigner("verify", "--print-certs", apk)
+        result = run_apksigner("verify", "--print-certs", "-v", apk)
         click.echo(result.stdout.decode("utf-8").strip())
     except subprocess.CalledProcessError as e:
         click.echo(f'Cannot verify signature: {e.stderr.decode("utf-8")}', err=True)
@@ -163,7 +163,7 @@ def signapk(apk, output=None, signer=None):
 
         # Verify the current signature
         try:
-            result = run_apksigner("verify", "--print-certs", apk)
+            result = run_apksigner("verify", "--print-certs", "-v", apk)
             table.add_row("Current Signature", result.stdout.decode("utf-8").strip())
             live.refresh()
         except subprocess.CalledProcessError as e:
@@ -202,7 +202,7 @@ def signapk(apk, output=None, signer=None):
 
         # Verify the new signature
         try:
-            result = run_apksigner("verify", "--print-certs", output)
+            result = run_apksigner("verify", "--print-certs", "-v", output)
             table.add_row("New Signature", result.stdout.decode("utf-8").strip())
             live.refresh()
         except subprocess.CalledProcessError as e:

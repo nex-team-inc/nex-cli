@@ -16,6 +16,34 @@ from nexcli.olympia.apksigner import signapk
 from nexcli.utils.uri import is_google_drive_uri
 
 API_TOKEN = "882e2a898d9197fea25fda6ffff8c16b2a68956abfd275ead614496855ea4608e0ace2e06c687b25d660f3e0e56c8ccb8d3b6da25c0ab8d441a10a4087fd450258563cc9e2ae23b0c98247564443e19eaf877d5766979e174eb933ea40c752a0fb6f9f421cb531b4891077c569004aa15cf01dbf750198352af590ba85855f62"
+ALLOWED_APK_PUBLIC_KEYS = [
+    "2fa50246e4c67b1c88850e84cb28132422527865d3470072cb21636d876d41dd",
+    "74f0220efac6d374d25412656d2a024a76060145c7ebe2a32471b67c32ff9aad",
+]
+
+
+def check_signature(apk):
+    """Check signature of the APK similar to util/SignatureVerifier.kt in launcher."""
+    click.echo("Approved signer public keys:")
+    for allowed in ALLOWED_APK_PUBLIC_KEYS:
+        click.echo(f"* {allowed}")
+
+    metadata = APK(apk)
+    digests = [
+        hashlib.sha256(key).hexdigest() for key in metadata.get_public_keys_der_v2()
+    ]
+
+    click.echo("Actual signer public keys:")
+    valid_count = 0
+    for digest in digests:
+        if digest in ALLOWED_APK_PUBLIC_KEYS:
+            click.echo(f"+ {digest}")
+            valid_count += 1
+        else:
+            click.echo(f"- {digest}")
+
+    if valid_count == 0:
+        raise click.ClickException("APK signature verification failed.")
 
 
 @click.group("cms")
@@ -38,6 +66,10 @@ def release(apk, label, production, no_sign):
     if not no_sign:
         click.echo("... signing APK")
         apk = signapk(apk)
+
+    if production:
+        click.echo("... checking APK signature")
+        check_signature(apk)
 
     api_url = (
         "https://cms.x.poseidon.npg.games/api"
