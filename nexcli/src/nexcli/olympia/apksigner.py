@@ -9,7 +9,6 @@ from pyaxmlparser import APK
 from rich.console import Console
 from rich.live import Live
 from rich.table import Table
-from nexcli import drive
 from nexcli.drive.service import download
 from nexcli.utils.locate import find_android_build_tools
 from nexcli.utils.uri import is_google_drive_uri
