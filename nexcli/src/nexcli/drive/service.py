@@ -22,7 +22,7 @@ USER_AUTH_TOKEN = Path.home() / ".nexcli/google_drive_token.json"
 
 # Function to extract the file ID from a Google Drive URL
 def extract_file_id(url):
-    match = re.search(r"/file/d/([a-zA-Z0-9_-]+)/", url)
+    match = re.search(r"/file/d/([a-zA-Z0-9_-]+)", url)
     if match:
         return match.group(1)
     else:
