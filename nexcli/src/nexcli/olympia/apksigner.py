@@ -21,6 +21,7 @@ GCP_KMS_KEYRING = "playos-app-signer"
 
 INTERNAL_SIGNER = "playos-apk-signer-1"
 EXTERNAL_SIGNER = "playos-apk-signer-2"
+STAGING_SUFFIX = ".staging"
 PACKAGE_SIGNERS = {
     # Internal games
     "team.nex.arcadexp": INTERNAL_SIGNER,
@@ -29,7 +30,8 @@ PACKAGE_SIGNERS = {
     "team.nex.bowling": INTERNAL_SIGNER,
     "team.nex.brickbuster": INTERNAL_SIGNER,
     "team.nex.bunnyhop": INTERNAL_SIGNER,
-    "team.nex.elmosays.staging": INTERNAL_SIGNER,
+    "team.nex.connect4": INTERNAL_SIGNER,
+    "team.nex.elmosays": INTERNAL_SIGNER,
     "team.nex.fitness": INTERNAL_SIGNER,
     "team.nex.galaxyjumper": INTERNAL_SIGNER,
     "team.nex.game2048": INTERNAL_SIGNER,
@@ -42,7 +44,7 @@ PACKAGE_SIGNERS = {
     "team.nex.plane": INTERNAL_SIGNER,
     "team.nex.posediagnostics": INTERNAL_SIGNER,
     "team.nex.starri": INTERNAL_SIGNER,
-    "team.nex.sesameflying.staging": INTERNAL_SIGNER,
+    "team.nex.sesameflying": INTERNAL_SIGNER,
     "team.nex.tennis": INTERNAL_SIGNER,
     "team.nex.tumbobots": INTERNAL_SIGNER,
     "team.nex.whackamole": INTERNAL_SIGNER,
@@ -149,7 +151,7 @@ def signapk(apk, output=None, signer=None):
 
         # Ensure a signer is defined for the package
         if signer is None:
-            signer = PACKAGE_SIGNERS.get(metadata.package)
+            signer = PACKAGE_SIGNERS.get(metadata.package.removesuffix(STAGING_SUFFIX))
             if signer is None:
                 raise click.ClickException(
                     "No signing credential defined for " + metadata.package
