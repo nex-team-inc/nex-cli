@@ -6,6 +6,7 @@ from nex_kms import decrypt
 
 @click.group()
 def unity():
+    """Provides common setups for Unity in NEX."""
     pass
 
 
