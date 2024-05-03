@@ -56,6 +56,8 @@ def cli(output_path: str):
     with click.open_file(output_path, "w") as file:
         file.write("### GENERATED ###\n")
         file.write("# fmt: off\n")
-        file.write("AVAILABLE = ")
-        file.write(repr(available))
+        file.write("AVAILABLE = {\n")
+        for key, value in sorted(available.items()):
+            file.write(f"    {repr(key)}: {repr(value)},\n")
+        file.write("}\n")
         file.write("\n# fmt: on\n")
