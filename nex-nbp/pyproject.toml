@@ -1,0 +1,20 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nex-nbp"
+version = "0.0.1"
+description = "Utilities on NBP"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "click>=8.1",
+    "nexcli>=0.1.5",
+    "GitPython>=3.1.43",
+    "nex-kms>=0.0.1",
+    "requests>=2.31.0"
+]
+
+[project.entry-points.'nexcli.subcommands']
+nbp = "nex_nbp:cli"
