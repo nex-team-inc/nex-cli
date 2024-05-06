@@ -1,9 +1,10 @@
-from importlib.metadata import EntryPoints, entry_points, Distribution
+from importlib.metadata import EntryPoints, entry_points
 from typing import List
 import os
 import sys
 
 import click
+from tabulate import tabulate
 
 from .utils.package_list import AVAILABLE
 from .utils.package import is_editable, is_valid_package_for_install
@@ -78,8 +79,11 @@ def discover():
     for package_name, description in AVAILABLE.items():
         click.echo(f"{package_name}: {description}")
 
+
 @components.command
-@click.argument("packages", type=click.Choice(AVAILABLE.keys(), case_sensitive=True), nargs=-1)
+@click.argument(
+    "packages", type=click.Choice(AVAILABLE.keys(), case_sensitive=True), nargs=-1
+)
 def install(packages):
     """Install packages for nexcli."""
     unique_names = set(packages)
@@ -99,39 +103,22 @@ def list():
     """List installed subcommands and packages."""
     # Build a map from package name to subcommands.
     package_map = {}
-    # First column is package-names.
-    # Second column is editability.
-    # Third column is subcommand lists.
-    header0 = "PACKAGE"
-    header1 = "EDITABLE"
-    header2 = "SUBCOMMAND"
-    len0 = len(header0)
-    len1 = len(header1)
-    len2 = len(header2)
     for plugin in subcommands:
         package_name = plugin.dist.name
         if package_name not in package_map:
-            package_map[package_name] = {'is_editable': is_editable(plugin.dist), 'subcommands': []}
-        package_map[package_name]['subcommands'].append(plugin.name)
-        if len(package_name) > len0:
-            len0 = len(package_name)
-        if len(plugin.name) > len2:
-            len2 = len(plugin.name)
+            package_map[package_name] = {
+                "is_editable": is_editable(plugin.dist),
+                "subcommands": [],
+            }
+        package_map[package_name]["subcommands"].append(plugin.name)
 
-    # Now print the table.
-    click.echo(f"{"=" * (len0 + len1 + len2 + 6)}")
-    click.echo(f"{header0:{len0}} | {header1:{len1}} | {header2}")
-    separator =f"{"-" * len0}-+-{"-" * len1}-+-{"-"*len2}" 
-    package_names = sorted(package_map.keys())
-    filler0 = " " * len0
-    filler1 = " " * len1
-    for package_name in package_names:
-        click.echo(separator)
-        data = package_map[package_name]
-        data0 = package_name + " " * (len0 - len(package_name))
-        data1 = ("Y" if data['is_editable'] else "N") + " " * (len1 - 1)
-        for subcmd in sorted(data['subcommands']):
-            click.echo(f"{data0} | {data1} | {subcmd}")
-            data0 = filler0
-            data1 = filler1
-    click.echo(f"{"=" * (len0 + len1 + len2 + 6)}")
+    # First column is package-names.
+    # Second column is editability.
+    # Third column is subcommand lists.
+    table = []
+    for key, data in sorted(package_map.items()):
+        table.append(
+            [key, "Y" if data["is_editable"] else "N", "\n".join(data["subcommands"])]
+        )
+    headers = ["PACKAGE", "EDITABLE", "SUBCOMMAND"]
+    click.echo(tabulate(table, headers, tablefmt="grid"))

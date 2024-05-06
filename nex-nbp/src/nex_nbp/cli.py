@@ -2,6 +2,7 @@ import click
 import os
 import os.path
 from typing import Dict, List, Optional, Sequence
+from tabulate import tabulate
 
 from .bitrise import BitriseClient
 from .git import GitInfo
@@ -148,5 +149,6 @@ def list_projects():
     """List configured NBP projects."""
     bitrise_client = BitriseClient()
     all_apps = bitrise_client.get_apps()
-    for app in all_apps:
-        click.echo(f"{app['title']}\t{app['repo_url']}")
+    table = sorted([app["title"], app["repo_url"]] for app in all_apps)
+    headers = ["TITLE", "REPO-URL"]
+    click.echo(tabulate(table, headers, tablefmt="simple"))
