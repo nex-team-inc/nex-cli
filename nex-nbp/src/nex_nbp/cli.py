@@ -1,6 +1,5 @@
 import click
-import os
-import os.path
+from json import dumps
 from typing import Dict, List, Optional, Sequence
 from tabulate import tabulate
 
@@ -48,19 +47,42 @@ def _find_app_slug_by_app_name(apps: List[Dict], app_name: str) -> Optional[str]
     return None
 
 
-def _compute_suffixes(staging: Optional[bool], production: Optional[bool]) -> List[str]:
-    # prod\stag  None  True  False
-    #   None      s      s
-    #   True      p     sp     p
-    #   False     s      s
-    if staging is None and not production:
-        staging = True
-    suffixes = []
-    if staging:
-        suffixes.append("stag")
-    if production:
-        suffixes.append("prod")
-    return suffixes
+_app_name_option = click.option(
+    "-a", "--app-name", "app_name", help="App name", type=click.STRING, default=None
+)
+_branch_option = click.option(
+    "-b", "--branch", "branch", help="Git Branch", type=click.STRING, default=None
+)
+
+
+def _find_app_slug(
+    apps: List[Dict], git_info: Optional[GitInfo], app_name: Optional[str]
+) -> str:
+    if app_name is not None:
+        app_slug = _find_app_slug_by_app_name(apps, app_name)
+        if app_slug is None:
+            raise click.UsageError(f"Could not find app on bitrise matching {app_name}")
+    else:
+        if git_info is None:
+            raise click.UsageError(
+                "Please run inside a git repository to use auto app discovery."
+            )
+        app_slug = _find_app_slug_by_git(apps, git_info)
+        if app_slug is None:
+            raise click.UsageError(
+                f"Could not find app on bitrise matching git url {git_info.remote_url}"
+            )
+    return app_slug
+
+
+def _find_branch(git_info: Optional[GitInfo], branch: Optional[str]) -> str:
+    if branch is not None:
+        return branch
+    if git_info is None:
+        raise click.UsageError(
+            "Please run inside a git repository to use auto branch detection"
+        )
+    return git_info.remote_name
 
 
 _WORKFLOW_MAP = {
@@ -74,15 +96,7 @@ _WORKFLOW_MAP = {
     "retail#-#prod": "build_olympia_retail_demo_prod",
 }
 
-
-@nbp.command()
-@click.option(
-    "-a", "--app-name", "app_name", help="App name", type=click.STRING, default=None
-)
-@click.option(
-    "-b", "--branch", "branch", help="Git Branch", type=click.STRING, default=None
-)
-@click.option(
+_staging_option = click.option(
     "-s",
     "--stag/--no-stag",
     "--staging/--no-staging",
@@ -90,7 +104,7 @@ _WORKFLOW_MAP = {
     is_flag=True,
     default=None,
 )
-@click.option(
+_production_option = click.option(
     "-p",
     "--prod/--no-prod",
     "--production/--no-production",
@@ -98,7 +112,7 @@ _WORKFLOW_MAP = {
     is_flag=True,
     default=None,
 )
-@click.option(
+_targets_option = click.option(
     "-t",
     "--target",
     "targets",
@@ -106,6 +120,31 @@ _WORKFLOW_MAP = {
     multiple=True,
     default=("olympia",),
 )
+
+
+def _compute_suffixes(staging: Optional[bool], production: Optional[bool]) -> List[str]:
+    # prod\stag  None  True  False
+    #   None      s      s
+    #   True      p     sp     p
+    #   False     s      s
+    if staging is None and not production:
+        staging = True
+    suffixes = []
+    if staging:
+        suffixes.append("stag")
+    if production:
+        suffixes.append("prod")
+    if not suffixes:
+        raise click.UsageError("No staging nor production, bailing out.")
+    return suffixes
+
+
+@nbp.command()
+@_app_name_option
+@_branch_option
+@_staging_option
+@_production_option
+@_targets_option
 @click.option("-c", "--clean/--no-clean", "clean", is_flag=True, default=False)
 def trigger(
     app_name: Optional[str],
@@ -120,41 +159,9 @@ def trigger(
     bitrise_client = BitriseClient()
     all_apps = bitrise_client.get_apps()
 
-    if app_name is not None:
-        app_slug = _find_app_slug_by_app_name(all_apps, app_name)
-        if app_slug is None:
-            click.echo(f"Could not find app on bitrise matching {app_name}", err=True)
-            return
-    else:
-        if git_info is None:
-            click.echo(
-                "Please run inside a git repository to use auto app discovery.",
-                err=True,
-            )
-            return
-        app_slug = _find_app_slug_by_git(all_apps, git_info)
-        if app_slug is None:
-            click.echo(
-                f"Could not find app on bitrise matching git url {git_info.remote_url}",
-                err=True,
-            )
-            return
-
+    app_slug = _find_app_slug(all_apps, git_info, app_name)
+    git_branch = _find_branch(git_info, branch)
     suffixes = _compute_suffixes(staging, production)
-    if not suffixes:
-        click.echo("No staging nor production, bailing out.", err=True)
-        return
-
-    if branch is not None:
-        git_branch = branch
-    else:
-        if git_info is None:
-            click.echo(
-                "Please run inside a git repository to use auto branch detection",
-                err=True,
-            )
-            return
-        git_branch = git_info.remote_name
 
     for target in targets:
         for suffix in suffixes:
@@ -183,3 +190,100 @@ def list_projects():
     table = sorted([app["title"], app["repo_url"]] for app in all_apps)
     headers = ["TITLE", "REPO-URL"]
     click.echo(tabulate(table, headers, tablefmt="simple"))
+
+
+@nbp.group("builds")
+@_app_name_option
+@click.option(
+    "-b",
+    "--branch",
+    "branch",
+    type=click.STRING,
+    help="Specify git branch to filter with.",
+    default=None,
+)
+@click.option(
+    "-g",
+    "--git-branch",
+    "use_git_branch",
+    is_flag=True,
+    help="Use branch from current git repo.",
+    default=False,
+)
+@_staging_option
+@_production_option
+@_targets_option
+@click.pass_context
+def builds(
+    ctx: click.Context,
+    app_name: Optional[str],
+    branch: Optional[str],
+    use_git_branch: bool,
+    staging: Optional[bool],
+    production: Optional[bool],
+    targets: Sequence[str],
+):
+    """Handle build."""
+    ctx.ensure_object(dict)
+    git_info = GitInfo.create()
+    bitrise_client = BitriseClient()
+    ctx.obj["git_info"] = git_info
+    ctx.obj["bitrise_client"] = bitrise_client
+    all_apps = bitrise_client.get_apps()
+    ctx.obj["app_slug"] = _find_app_slug(all_apps, git_info, app_name)
+
+    if branch:
+        ctx.obj["git_branch"] = branch
+    elif use_git_branch:
+        if git_info is None:
+            raise click.UsageError("Auto git branch is only valid inside a git repo.")
+        ctx.obj["git_branch"] = git_info.remote_name
+    else:
+        ctx.obj["git_branch"] = None
+
+    suffixes = _compute_suffixes(staging, production)
+    workflows = []
+    for target in targets:
+        for suffix in suffixes:
+            key = f"{target}#-#{suffix}"
+            if key not in _WORKFLOW_MAP:
+                click.echo(
+                    f"Cannot identify workflow id for {target} {suffix}", err=True
+                )
+                continue
+            workflows.append(_WORKFLOW_MAP[key])
+    ctx.obj["workflows"] = workflows
+
+
+@builds.command()
+@click.pass_context
+def list(ctx: click.Context):
+    """Lists recent completed builds for the given app / branch."""
+    app_slug: str = ctx.obj["app_slug"]
+    git_branch: Optional[str] = ctx.obj["git_branch"]
+    bitrise_client: BitriseClient = ctx.obj["bitrise_client"]
+    workflows: Sequence[str] = ctx.obj["workflows"]
+    build_dict = bitrise_client.get_post_builds(app_slug, git_branch, workflows)
+    for key, (build, apk_artifact) in build_dict.items():
+        click.echo(f"{build['build_number']}: {apk_artifact['title']}")
+        print(apk_artifact)
+
+
+@builds.command()
+@click.option(
+    "-o",
+    "--output",
+    type=click.Path(file_okay=False, exists=True),
+    help="Output directory for apks.",
+    default=".",
+)
+@click.pass_context
+def apk(ctx: click.Context, output: str):
+    """Download pak for the give app / branch."""
+    app_slug: str = ctx.obj["app_slug"]
+    git_branch: Optional[str] = ctx.obj["git_branch"]
+    bitrise_client: BitriseClient = ctx.obj["bitrise_client"]
+    workflows: Sequence[str] = ctx.obj["workflows"]
+    build_dict = bitrise_client.get_post_builds(app_slug, git_branch, workflows)
+    for key, (build, apk_artifact) in build_dict.items():
+        bitrise_client.download_apk(app_slug, build, apk_artifact, output)
