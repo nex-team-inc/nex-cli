@@ -1,7 +1,7 @@
 import os
 import os.path
 from pathlib import Path
-from typing import Optional, Tuple
+from typing import Optional
 
 from git import Repo
 
@@ -18,8 +18,11 @@ class GitInfo:
         return None
 
     @classmethod
-    def create(cls) -> "GitInfo":
-        return cls(cls._find_gitdir())
+    def create(cls) -> Optional["GitInfo"]:
+        gitdir = cls._find_gitdir()
+        if gitdir is None:
+            return None
+        return cls(gitdir)
 
     def __init__(self, gitdir: str):
         repo = Repo(gitdir)

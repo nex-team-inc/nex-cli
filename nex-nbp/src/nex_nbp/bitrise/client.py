@@ -1,4 +1,4 @@
-from typing import List, Optional, Dict
+from typing import Dict, List, Optional, Tuple
 import requests
 
 from .constants import BITRISE_API_KEY, BITRISE_ORG_SLUG
@@ -53,7 +53,7 @@ class Client:
 
     def build(
         self, app_slug: str, workflow_id: str, git_branch: str, clean: bool = False
-    ) -> None:
+    ) -> Optional[Tuple[str, str]]:
         build_params = {"branch": git_branch, "workflow_id": workflow_id}
         if clean:
             build_params["environments"] = [
@@ -73,5 +73,6 @@ class Client:
             },
         )
         if response.status_code != 201:
-            print(f"Failed: {response.reason}")
-            print(response.json())
+            return (response.reason, response.json())
+
+        return None

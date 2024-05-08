@@ -80,6 +80,9 @@ _WORKFLOW_MAP = {
     "-a", "--app-name", "app_name", help="App name", type=click.STRING, default=None
 )
 @click.option(
+    "-b", "--branch", "branch", help="Git Branch", type=click.STRING, default=None
+)
+@click.option(
     "-s",
     "--stag/--no-stag",
     "--staging/--no-staging",
@@ -106,6 +109,7 @@ _WORKFLOW_MAP = {
 @click.option("-c", "--clean/--no-clean", "clean", is_flag=True, default=False)
 def trigger(
     app_name: Optional[str],
+    branch: Optional[str],
     staging: Optional[bool],
     production: Optional[bool],
     targets: Sequence[str],
@@ -116,21 +120,42 @@ def trigger(
     bitrise_client = BitriseClient()
     all_apps = bitrise_client.get_apps()
 
-    app_slug = (
-        _find_app_slug_by_git(all_apps, git_info)
-        if app_name is None
-        else _find_app_slug_by_app_name(all_apps, app_name)
-    )
-    if app_slug is None:
-        click.echo("Could not find app on bitrise.", err=True)
-        return
+    if app_name is not None:
+        app_slug = _find_app_slug_by_app_name(all_apps, app_name)
+        if app_slug is None:
+            click.echo(f"Could not find app on bitrise matching {app_name}", err=True)
+            return
+    else:
+        if git_info is None:
+            click.echo(
+                "Please run inside a git repository to use auto app discovery.",
+                err=True,
+            )
+            return
+        app_slug = _find_app_slug_by_git(all_apps, git_info)
+        if app_slug is None:
+            click.echo(
+                f"Could not find app on bitrise matching git url {git_info.remote_url}",
+                err=True,
+            )
+            return
 
     suffixes = _compute_suffixes(staging, production)
     if not suffixes:
         click.echo("No staging nor production, bailing out.", err=True)
         return
 
-    git_branch = git_info.remote_name
+    if branch is not None:
+        git_branch = branch
+    else:
+        if git_info is None:
+            click.echo(
+                "Please run inside a git repository to use auto branch detection",
+                err=True,
+            )
+            return
+        git_branch = git_info.remote_name
+
     for target in targets:
         for suffix in suffixes:
             key = f"{target}#-#{suffix}"
@@ -140,8 +165,14 @@ def trigger(
                 )
                 continue
             workflow_id = _WORKFLOW_MAP[key]
-            click.echo(f"Triggering {workflow_id}")
-            bitrise_client.build(app_slug, workflow_id, git_branch, clean)
+            click.echo(f"Triggering {workflow_id} ... ", nl=False)
+            result = bitrise_client.build(app_slug, workflow_id, git_branch, clean)
+            if result is None:
+                click.echo("SUCCESS")
+            else:
+                click.echo("FAILED")
+                click.echo(f"REASON: {result[0]}", err=True)
+                click.echo(f"RESPONSE: {result[1]}", err=True)
 
 
 @nbp.command("list")
