@@ -12,6 +12,7 @@ OS_HOST = "os.dev.poseidon.npg.games"
 OS_PORT = 443
 OS_LOG_INDEX = "android-logs-eng-*"
 OS_USERNAME = "nex-support"
+OS_PASSWORD = "8z~KzyTqzJAO56iX"
 
 DEVICE_ALIAS = {"david": "902795HP52A000005"}
 
@@ -26,30 +27,17 @@ def bucket_name(env):
     return f"nex-use2-{env}01-reports"
 
 
-def os_client(password):
-    if password is None:
-        session = boto3.Session(profile_name=OS_AWS_PROFILE)
-        credentials = session.get_credentials()
+def secretmanager_client(env):
+    suffix = "prod" if env == "prd" else "test"
+    session = boto3.Session(profile_name=f"nexcli-olympia-bugreport-{suffix}")
+    return session.client("secretmanager")
 
-        if credentials is None:
-            raise click.ClickException(
-                'No AWS credentials found. Please sign-in with "aws configure sso"'
-            )
 
-        auth = AWS4Auth(
-            credentials.access_key,
-            credentials.secret_key,
-            OS_AWS_REGION,
-            "es",  # Service code for OpenSearch
-            session_token=credentials.token,  # Required if using temporary credentials
-        )
-    else:
-        auth = (OS_USERNAME, password)
-
+def os_client():
     # Creating OS client.
     return OpenSearch(
         hosts=[{"host": OS_HOST, "port": OS_PORT}],
-        http_auth=auth,
+        http_auth=(OS_USERNAME, OS_PASSWORD),
         use_ssl=True,
         connection_class=RequestsHttpConnection,
     )
@@ -120,19 +108,18 @@ def list(env, max_age):
 
 @click.command()
 @click.argument("deviceid")
-@click.option("-p", "--password", help="Password to login OpenSearch.")
 @click.option("--from", "from_date", default="now-1d", help="Start time of the log.")
 @click.option("--to", "to_date", default="now", help="End time of the log.")
 @click.option("-l", "--min-level", help="Minimum log level.")
 @click.option("-t", "--tag", help="Log tag (support wildcard).")
 @click.option("-m", "--message", help="Log message (support wildcard).")
-def log(deviceid, password, from_date, to_date, min_level, tag, message):
+def log(deviceid, from_date, to_date, min_level, tag, message):
     """Get device log from OpenSearch."""
 
     if deviceid in DEVICE_ALIAS:
         deviceid = DEVICE_ALIAS[deviceid]
 
-    client = os_client(password=password)
+    client = os_client()
     query = Q("match", deviceId=deviceid)
     query &= Q("range", **{"@timestamp": {"gte": from_date, "lte": to_date}})
     if min_level is not None:
