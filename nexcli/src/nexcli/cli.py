@@ -81,17 +81,24 @@ def discover():
 
 
 @components.command
+@click.option(
+    "-a", "--all", is_flag=True, default=False, help="Install all known nex CLI compliant packages."
+)
 @click.argument(
     "packages", type=click.Choice(AVAILABLE.keys(), case_sensitive=True), nargs=-1
 )
-def install(packages):
+def install(packages: List[str], all: bool) -> None:
     """Install packages for nexcli."""
-    unique_names = set(packages)
+    unique_names = set(AVAILABLE.keys() if all else packages)
     # Find those that are not editable.
     valid_names = [pkg for pkg in unique_names if is_valid_package_for_install(pkg)]
     if not valid_names:
-        click.echo("Please specify non-editable package(s) for installation.")
+        if all:
+            click.echo("All packages installed as editable packages.")
+        else:
+            click.echo("Please specify non-editable package(s) for installation.")
     else:
+        click.echo(f"Installing the following packages: {" ".join(valid_names)}")
         os.execv(
             sys.executable,
             [sys.executable, "-m", "pip", "install", "--upgrade", *valid_names],

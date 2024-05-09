@@ -36,3 +36,4 @@ def setup(shell: str):
                 file.write("\n")
                 file.write(instruction)
                 file.write("\n")
+    click.echo("Please restart your shell if it does not work.")
