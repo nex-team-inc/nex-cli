@@ -1,7 +1,20 @@
 import asyncio
+import socket
 from typing import List
 
 class PortChecker:
+    @staticmethod
+    def check(host: str, port: int) -> bool:
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
+                sock.settimeout(3)
+                if sock.connect_ex((host, port)) == 0:
+                    return True
+        except:
+            return False
+        
+        return False
+
     def __init__(self, concurrency: int = 32):
         self._concurrency = concurrency
 

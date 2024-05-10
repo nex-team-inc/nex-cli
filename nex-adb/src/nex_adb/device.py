@@ -35,7 +35,7 @@ class Device:
         available = PortChecker().filter(hosts)
         ret = []
         for host in available:
-            device = cls.create(host)
+            device = cls._create(host)
             if device is not None:
                 ret.append(device)
 
@@ -61,7 +61,7 @@ class Device:
         return cls._signer
 
     @classmethod
-    def create(cls, ip: str) -> Optional["Device"]:
+    def _create(cls, ip: str) -> Optional["Device"]:
         try:
             dev = AdbDeviceTcp(ip, cls.ADB_PORT, default_transport_timeout_s=9.)
             dev.connect(rsa_keys=[cls._get_signer()], auth_timeout_s=0.1)
@@ -72,6 +72,11 @@ class Device:
             print(ex)
             return None
     
+    @classmethod
+    def create(cls, ip: str) -> Optional["Device"]:
+        if not PortChecker.check(ip, cls.ADB_PORT):
+            return None
+        return cls._create(ip)
 
     def __init__(self, ip: str, serial_num: str, fingerprint: str):
         self._ip = ip
@@ -97,3 +102,17 @@ class Device:
     @property
     def fingerprint(self):
         return self._fingerprint
+    
+    def _get_dev(self) -> AdbDeviceTcp:
+        if self._dev is None:
+            dev = self._dev = AdbDeviceTcp(self._ip, self.ADB_PORT, default_transport_timeout_s=9.)
+            dev.connect(rsa_keys=[self._get_signer()], auth_timeout_s=0.1)
+        return self._dev
+    
+    def start(self, package_name: str):
+        dev = self._get_dev()
+        dev.shell(f"monkey -p {package_name} 1")
+
+    def kill(self, package_name: str):
+        dev = self._get_dev()
+        dev.shell(f"am force-stop {package_name}")
