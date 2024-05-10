@@ -1,0 +1,21 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "nex-adb"
+version = "0.0.1"
+description = "Utilities for ADB usages in Nex."
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = [
+    "click>=8.1",
+    "nex-kms>=0.0.1",
+    "nexcli>=0.1.5",
+    "scapy>=2.5.0",
+    "adb_shell>=0.4",
+    "tabulate>=0.9.0",
+]
+
+[project.entry-points.'nexcli.subcommands']
+adb = "nex_adb:cli"

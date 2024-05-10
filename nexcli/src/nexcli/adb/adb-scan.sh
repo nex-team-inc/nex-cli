@@ -1,4 +1,0 @@
-#!/usr/bin/env bash
-
-which -s arp-scan expect || (echo 'Please run "brew install arp-scan expect" first.'; exit 1)
-unbuffer arp-scan -l -q -x -F '${ip}' | xargs -n1 -I% -P 0 sh -c 'nc -zG3 % 5555 2>/dev/null && adb connect % >/dev/null && echo "%\t$(adb -s % shell getprop ro.serialno)\t$(adb -s % shell getprop ro.build.fingerprint)" 2>/dev/null'
