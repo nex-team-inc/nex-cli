@@ -7,9 +7,11 @@ from typing import Dict, List
 import click
 
 import logging
+
 scapy_logger = logging.getLogger("scapy.runtime")
 scapy_logger.level = logging.ERROR
 from scapy.all import conf, Ether, ARP, srp
+
 scapy_logger.level = logging.WARNING
 
 
@@ -23,7 +25,9 @@ def _get_broadcast_addresses() -> Dict[str, str]:
         mask = t[1]
         if net == 0 or mask == 0:
             continue
-        ip_addr = sum(int(com) * (256**(3 - idx)) for idx, com in enumerate(t[4].split('.')))
+        ip_addr = sum(
+            int(com) * (256 ** (3 - idx)) for idx, com in enumerate(t[4].split("."))
+        )
         if (ip_addr & mask) != (net & mask):
             continue
         # Find the one that has minimum mask.
@@ -39,12 +43,23 @@ def _get_broadcast_addresses() -> Dict[str, str]:
         addresses[iface] = f"{'.'.join(chunks)}/{mask.bit_count()}"
     return addresses
 
+
 def _arp_scan(address) -> List[str]:
     # Prepare the ARP request.
-    arp_request = Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=address)
-    
+    packet = Ether(dst="ff:ff:ff:ff:ff:ff") / ARP(pdst=address)
+
+    template_prefix = bytes(packet)[:-4]
+
+    def fast_bytes(self):
+        return template_prefix + bytes(int(v) for v in self.payload.pdst.split("."))
+
+    backup = Ether.__bytes__
+    Ether.__bytes__ = fast_bytes
+
     # Send the packet and receive the answer.
-    answered, unanswered = srp(arp_request, timeout=4, verbose=0, retry=2)
+    answered, unanswered = srp(packet, timeout=4, verbose=0, retry=2, inter=0.002)
+
+    Ether.__bytes__ = backup
 
     # List to hold the live hosts.
     live_hosts = []
@@ -55,12 +70,17 @@ def _arp_scan(address) -> List[str]:
 
     return live_hosts
 
+
 BROADCAST_ENDPOINT = "/dev/bpf0"
+
+
 def full_scan() -> List[str]:
     # First check if /dev/bpf0 is accessible or not.
     if not os.access(BROADCAST_ENDPOINT, os.R_OK | os.W_OK):
         click.echo("Enable to access broadcast device for auto-discovery.", err=True)
-        click.echo(f"Please consider running sudo chown {os.getlogin()}:staff {BROADCAST_ENDPOINT}")
+        click.echo(
+            f"Please consider running sudo chown {os.getlogin()}:staff {BROADCAST_ENDPOINT}"
+        )
         raise click.UsageError("Permission error to broadcast devices.")
     addresses = _get_broadcast_addresses()
     ret = []
