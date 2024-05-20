@@ -9,3 +9,4 @@ def cli():
 
 
 cli.add_command(deviceid.serialno)
+cli.add_command(deviceid.trackingid)

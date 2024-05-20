@@ -88,3 +88,11 @@ def serialno(id_prefix: str):
         print(f"Device Tracking ID: {matching_hash}")
     else:
         print("No matches.")
+
+
+@click.command()
+@click.argument("serialno")
+def trackingid(serialno: str):
+    """Lookup a device tracking ID from a device serial number."""
+    base64_hash = compute_base64_sha512_hash(serialno)
+    print(f"Device Tracking ID: {base64_hash}")
