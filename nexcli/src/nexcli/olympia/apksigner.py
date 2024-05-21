@@ -33,6 +33,7 @@ PACKAGE_SIGNERS = {
     "team.nex.connect4": INTERNAL_SIGNER,
     "team.nex.elmosays": INTERNAL_SIGNER,
     "team.nex.fitness": INTERNAL_SIGNER,
+    "team.nex.fitnesschallenge": INTERNAL_SIGNER,
     "team.nex.galaxyjumper": INTERNAL_SIGNER,
     "team.nex.game2048": INTERNAL_SIGNER,
     "team.nex.gokeeper": INTERNAL_SIGNER,
