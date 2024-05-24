@@ -20,6 +20,7 @@ DEVICE_ALIAS = {"david": "902795HP52A000005"}
 def s3_client(env):
     suffix = "prod" if env == "prd" else "test"
     session = boto3.Session(profile_name=f"nexcli-olympia-bugreport-{suffix}")
+    # TODO: if failed with "Error when retrieving token from sso: Token has expired and refresh failed", remind users to login using "aws sso login --sso-session nex"
     return session.client("s3")
 
 
