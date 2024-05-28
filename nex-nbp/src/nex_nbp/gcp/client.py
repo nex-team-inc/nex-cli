@@ -37,7 +37,7 @@ class Client:
             )
         return ret
 
-    def find_builds(
+    def find_latest_builds(
         self,
         app: AppEntry,
         branch: Optional[str] = None,
@@ -61,15 +61,16 @@ class Client:
 
         ret = []
         for snapshot in query.stream():
-            ret.append(
-                BuildEntry(
-                    int(snapshot.id),
-                    snapshot.get("branch"),
-                    workflow,
-                    snapshot.get("trigger_timestamp"),
-                    snapshot.get("app_build_number"),
-                    snapshot.get("apk_slug"),
-                    snapshot.get("apk_size"),
-                )
-            )
+            ret.append(BuildEntry.from_snapshot(snapshot))
         return ret
+
+    def find_build(self, app: AppEntry, build_num: int) -> Optional[BuildEntry]:
+        collection_ref: firestore.CollectionReference = (
+            self._client.collection("projects")
+            .document(app.app_code)
+            .collection("builds")
+        )
+        snapshot = collection_ref.document(str(build_num)).get()
+        if not snapshot.exists:
+            return None
+        return BuildEntry.from_snapshot(snapshot)

@@ -50,6 +50,7 @@ class Client:
             headers=self._get_request_headers(),
             params={"limit": 50},
         )
+        response.raise_for_status()
         json = response.json()
         all_apps = [app for app in json["data"]]
         while "next" in json["paging"]:
@@ -59,6 +60,7 @@ class Client:
                 headers=self._get_request_headers(),
                 params={"limit": 50, "next": json["paging"]["next"]},
             )
+            response.raise_for_status()
             json = response.json()
             all_apps.extend(app for app in json["data"])
 
@@ -97,8 +99,7 @@ class Client:
             headers=self._get_request_headers(),
             params=dict(workflow="ucb_post_build"),
         )
-        if response.status_code != 200:
-            raise Exception(response.reason, str(response.json()))
+        response.raise_for_status()
         json = response.json()
         for data in json["data"]:
             yield data
@@ -109,8 +110,7 @@ class Client:
                 headers=self._get_request_headers(),
                 params=dict(workflow="ucb_post_build", next=json["paging"]["next"]),
             )
-            if response.status_code != 200:
-                raise Exception(response.reason, str(response.json()))
+            response.raise_for_status()
             json = response.json()
             for data in json["data"]:
                 yield data
@@ -121,6 +121,7 @@ class Client:
             method="GET",
             headers=self._get_request_headers(),
         )
+        response.raise_for_status()
         # Find the artifacts with the name env_vars.json, and one with with the .apk suffix
         apk_artifact = None
         env_artifact = None
@@ -134,12 +135,13 @@ class Client:
     def _get_download_url(
         self, app_slug: str, build_slug: str, artifact_slug: str
     ) -> str:
-        metadata = requests.request(
+        response = requests.request(
             url=self._get_artifact_endpoint(app_slug, build_slug, artifact_slug),
             method="GET",
             headers=self._get_request_headers(),
         )
-        return metadata.json()["data"]["expiring_download_url"]
+        response.raise_for_status()
+        return response.json()["data"]["expiring_download_url"]
 
     def _fetch_env_vars(
         self, app_slug: str, build_slug: str, env_artifact: Dict
@@ -148,6 +150,7 @@ class Client:
             app_slug, build_slug, env_artifact["slug"]
         )
         downloaded = requests.request(url=download_url, method="GET")
+        downloaded.raise_for_status()
         return downloaded.json()
 
     def get_post_builds(
@@ -180,6 +183,31 @@ class Client:
                 break
 
         return ret
+
+    def download_artifact(
+        self, app_slug: str, build_slug: str, artifact_slug: str, out_dir: str
+    ) -> None:
+        response = requests.request(
+            url=self._get_artifact_endpoint(app_slug, build_slug, artifact_slug),
+            method="GET",
+            headers=self._get_request_headers(),
+        )
+        response.raise_for_status()
+        metadata = response.json()["data"]
+
+        file_size_bytes = metadata["file_size_bytes"]
+        download_url = self._get_download_url(app_slug, build_slug, artifact_slug)
+        output_file = os.path.join(out_dir, metadata["title"])
+        click.echo(f"Downloading to {output_file}")
+        click.echo(f"Download URL: {download_url}")
+        with requests.get(download_url, stream=True) as req:
+            req.raise_for_status()
+            with open(output_file, "wb") as file:
+                with tqdm(total=file_size_bytes, unit="b", unit_scale=True) as pbar:
+                    for chunk in req.iter_content(chunk_size=8192):
+                        if chunk:
+                            file.write(chunk)
+                            pbar.update(len(chunk))
 
     def download_apk(
         self, app_slug: str, build: Dict, apk_artifact: Dict, out_dir: str

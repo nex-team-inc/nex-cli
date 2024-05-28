@@ -6,7 +6,7 @@ import click
 from tabulate import tabulate
 
 from .bitrise import BitriseClient
-from .gcp import AppEntry, GCPClient
+from .gcp import AppEntry, BuildEntry, GCPClient
 from .git import GitInfo
 
 
@@ -288,13 +288,14 @@ def builds_list(ctx: click.Context, limit: int) -> None:
     workflows: Sequence[str] = ctx.obj["workflows"]
     for workflow in workflows:
         click.echo(f"Workflow {workflow}:")
-        for build_entry in gcp_client.find_builds(
+        for build_entry in gcp_client.find_latest_builds(
             app_entry, git_branch, workflow, limit
         ):
             click.echo(build_entry)
 
 
 @builds.command()
+@click.argument("build_nums", type=int, nargs=-1)
 @click.option(
     "-o",
     "--output",
@@ -303,12 +304,36 @@ def builds_list(ctx: click.Context, limit: int) -> None:
     default=os.path.expanduser("~/Downloads/"),
 )
 @click.pass_context
-def apk(ctx: click.Context, output: str):
+def apk(ctx: click.Context, build_nums: Sequence[int], output: str):
     """Download apk for the give app / branch."""
     app_entry: AppEntry = ctx.obj["app_entry"]
-    git_branch: Optional[str] = ctx.obj["git_branch"]
+    gcp_client: GCPClient = ctx.obj["gcp_client"]
+    build_entries: List[BuildEntry] = []
+    build_num_set = set()
+    if len(build_nums) == 0:
+        # Figure out what the latest builds are.
+        git_branch: Optional[str] = ctx.obj["git_branch"]
+        workflows: Sequence[str] = ctx.obj["workflows"]
+        for workflow in workflows:
+            for entry in gcp_client.find_latest_builds(
+                app_entry, git_branch, workflow, 1
+            ):
+                if entry.build_num not in build_num_set:
+                    build_entries.append(entry)
+                    build_num_set.add(entry.build_num)
+
+    else:
+        for build_num in build_nums:
+            if build_num not in build_num_set:
+                build_num_set.add(build_num)
+                entry = gcp_client.find_build(app_entry, build_num)
+                if entry is not None:
+                    build_entries.append(entry)
+                else:
+                    click.echo(f"Unable to find build {build_num}", err=True)
+
     bitrise_client: BitriseClient = ctx.obj["bitrise_client"]
-    workflows: Sequence[str] = ctx.obj["workflows"]
-    build_dict = bitrise_client.get_post_builds(app_entry.slug, git_branch, workflows)
-    for key, (build, apk_artifact) in build_dict.items():
-        bitrise_client.download_apk(app_entry.slug, build, apk_artifact, output)
+    for build_entry in build_entries:
+        bitrise_client.download_artifact(
+            app_entry.slug, build_entry.build_slug, build_entry.apk_slug, output
+        )
