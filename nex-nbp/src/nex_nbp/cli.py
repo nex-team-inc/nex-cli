@@ -1,4 +1,4 @@
-from json import dumps
+from datetime import datetime
 import os.path
 from typing import Dict, List, Optional, Sequence
 
@@ -286,12 +286,25 @@ def builds_list(ctx: click.Context, limit: int) -> None:
     git_branch: Optional[str] = ctx.obj["git_branch"]
     gcp_client: GCPClient = ctx.obj["gcp_client"]
     workflows: Sequence[str] = ctx.obj["workflows"]
+
+    headers = ("Build#", "Branch", "Time")
     for workflow in workflows:
         click.echo(f"Workflow {workflow}:")
-        for build_entry in gcp_client.find_latest_builds(
-            app_entry, git_branch, workflow, limit
-        ):
-            click.echo(build_entry)
+        click.echo(
+            tabulate(
+                (
+                    (
+                        build_entry.build_num,
+                        build_entry.branch,
+                        datetime.fromtimestamp(build_entry.timestamp),
+                    )
+                    for build_entry in gcp_client.find_latest_builds(
+                        app_entry, git_branch, workflow, limit
+                    )
+                ),
+                headers=headers,
+            )
+        )
 
 
 @builds.command()
