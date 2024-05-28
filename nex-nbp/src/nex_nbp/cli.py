@@ -4,6 +4,7 @@ from typing import Dict, List, Optional, Sequence
 from tabulate import tabulate
 
 from .bitrise import BitriseClient
+from .gcp import AppEntry, GCPClient
 from .git import GitInfo
 
 
@@ -13,36 +14,40 @@ def nbp() -> None:
     pass
 
 
-def _find_app_slug_by_git(apps: List[Dict], git_info: GitInfo) -> Optional[str]:
+def _find_app_entry_by_git(
+    apps: List[AppEntry], git_info: GitInfo
+) -> Optional[AppEntry]:
     remote_url = git_info.remote_url
     for app in apps:
-        if app["repo_url"] == remote_url:
-            return app["slug"]
+        if app.repo_url == remote_url:
+            return app
     return None
 
 
-def _find_app_slug_by_app_name(apps: List[Dict], app_name: str) -> Optional[str]:
+def _find_app_entry_by_app_name(
+    apps: List[AppEntry], app_name: str
+) -> Optional[AppEntry]:
     app_name = app_name.lower()
     # We pick the app name that is most suitable.
     for app in apps:
         # Try to find a match.
-        if app["title"].lower().find(app_name) != -1:
-            return app["slug"]
+        if app.title.lower().find(app_name) != -1:
+            return app
     # No match, try removing spaces.
     app_name = app_name.replace(" ", "")
     for app in apps:
-        if app["title"].lower().replace(" ", "").find(app_name) != -1:
-            return app["slug"]
+        if app.title.lower().replace(" ", "").find(app_name) != -1:
+            return app
     # Still no match. Try to find one that has the same sequence.
     for app in apps:
-        title = app["title"].lower().replace(" ", "")
+        title = app.title.lower().replace(" ", "")
         pos = -1
         for ch in app_name:
             pos = title.find(ch, pos + 1)
             if pos == -1:
                 break
         else:
-            return app["slug"]
+            return app
 
     return None
 
@@ -55,24 +60,24 @@ _branch_option = click.option(
 )
 
 
-def _find_app_slug(
-    apps: List[Dict], git_info: Optional[GitInfo], app_name: Optional[str]
-) -> str:
+def _find_app_entry(
+    apps: List[AppEntry], git_info: Optional[GitInfo], app_name: Optional[str]
+) -> Optional[AppEntry]:
     if app_name is not None:
-        app_slug = _find_app_slug_by_app_name(apps, app_name)
-        if app_slug is None:
+        app_entry = _find_app_entry_by_app_name(apps, app_name)
+        if app_entry is None:
             raise click.UsageError(f"Could not find app on bitrise matching {app_name}")
     else:
         if git_info is None:
             raise click.UsageError(
                 "Please run inside a git repository to use auto app discovery."
             )
-        app_slug = _find_app_slug_by_git(apps, git_info)
-        if app_slug is None:
+        app_entry = _find_app_entry_by_git(apps, git_info)
+        if app_entry is None:
             raise click.UsageError(
                 f"Could not find app on bitrise matching git url {git_info.remote_url}"
             )
-    return app_slug
+    return app_entry
 
 
 def _find_branch(git_info: Optional[GitInfo], branch: Optional[str]) -> str:
@@ -157,9 +162,10 @@ def trigger(
     """Trigger a build through bitrise."""
     git_info = GitInfo.create()
     bitrise_client = BitriseClient()
-    all_apps = bitrise_client.get_apps()
+    gcp_client = GCPClient()
+    all_apps = gcp_client.get_apps()
 
-    app_slug = _find_app_slug(all_apps, git_info, app_name)
+    app_entry = _find_app_entry(all_apps, git_info, app_name)
     git_branch = _find_branch(git_info, branch)
     suffixes = _compute_suffixes(staging, production)
 
@@ -173,7 +179,9 @@ def trigger(
                 continue
             workflow_id = _WORKFLOW_MAP[key]
             click.echo(f"Triggering {workflow_id} ... ", nl=False)
-            result = bitrise_client.build(app_slug, workflow_id, git_branch, clean)
+            result = bitrise_client.build(
+                app_entry.slug, workflow_id, git_branch, clean
+            )
             if result is None:
                 click.echo("SUCCESS")
             else:
@@ -185,9 +193,9 @@ def trigger(
 @nbp.command("list")
 def list_projects():
     """List configured NBP projects."""
-    bitrise_client = BitriseClient()
-    all_apps = bitrise_client.get_apps()
-    table = sorted([app["title"], app["repo_url"]] for app in all_apps)
+    gcp_client = GCPClient()
+    all_apps = gcp_client.get_apps()
+    table = sorted([app.title, app.repo_url] for app in all_apps)
     headers = ["TITLE", "REPO-URL"]
     click.echo(tabulate(table, headers, tablefmt="simple"))
 
@@ -229,8 +237,9 @@ def builds(
     bitrise_client = BitriseClient()
     ctx.obj["git_info"] = git_info
     ctx.obj["bitrise_client"] = bitrise_client
-    all_apps = bitrise_client.get_apps()
-    ctx.obj["app_slug"] = _find_app_slug(all_apps, git_info, app_name)
+    gcp_client = GCPClient()
+    all_apps = gcp_client.get_apps()
+    ctx.obj["app_entry"] = _find_app_entry(all_apps, git_info, app_name)
 
     if branch:
         ctx.obj["git_branch"] = branch
@@ -259,11 +268,11 @@ def builds(
 @click.pass_context
 def list(ctx: click.Context):
     """Lists recent completed builds for the given app / branch."""
-    app_slug: str = ctx.obj["app_slug"]
+    app_entry: AppEntry = ctx.obj["app_entry"]
     git_branch: Optional[str] = ctx.obj["git_branch"]
     bitrise_client: BitriseClient = ctx.obj["bitrise_client"]
     workflows: Sequence[str] = ctx.obj["workflows"]
-    build_dict = bitrise_client.get_post_builds(app_slug, git_branch, workflows)
+    build_dict = bitrise_client.get_post_builds(app_entry.slug, git_branch, workflows)
     for key, (build, apk_artifact) in build_dict.items():
         click.echo(f"{build['build_number']}: {apk_artifact['title']}")
         print(apk_artifact)
@@ -280,10 +289,10 @@ def list(ctx: click.Context):
 @click.pass_context
 def apk(ctx: click.Context, output: str):
     """Download pak for the give app / branch."""
-    app_slug: str = ctx.obj["app_slug"]
+    app_entry: AppEntry = ctx.obj["app_entry"]
     git_branch: Optional[str] = ctx.obj["git_branch"]
     bitrise_client: BitriseClient = ctx.obj["bitrise_client"]
     workflows: Sequence[str] = ctx.obj["workflows"]
-    build_dict = bitrise_client.get_post_builds(app_slug, git_branch, workflows)
+    build_dict = bitrise_client.get_post_builds(app_entry.slug, git_branch, workflows)
     for key, (build, apk_artifact) in build_dict.items():
-        bitrise_client.download_apk(app_slug, build, apk_artifact, output)
+        bitrise_client.download_apk(app_entry.slug, build, apk_artifact, output)

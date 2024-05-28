@@ -4,15 +4,13 @@ from typing import Dict, Iterator, List, Optional, Sequence, Tuple
 import requests
 from tqdm import tqdm
 
-from .constants import BITRISE_API_KEY, BITRISE_ORG_SLUG
+from .utils import get_bitrise_api_key, get_bitrise_org_slug
 
 
 class Client:
-    def __init__(
-        self, api_key: str = BITRISE_API_KEY, org_slug: str = BITRISE_ORG_SLUG
-    ):
-        self._api_key = api_key
-        self._org_slug = org_slug
+    def __init__(self, api_key: Optional[str] = None, org_slug: Optional[str] = None):
+        self._api_key = api_key if api_key is not None else get_bitrise_api_key()
+        self._org_slug = org_slug if org_slug is not None else get_bitrise_org_slug()
 
     @classmethod
     def _get_api_endpoint(cls, path: str) -> str:
