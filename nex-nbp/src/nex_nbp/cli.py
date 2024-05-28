@@ -1,6 +1,8 @@
-import click
 from json import dumps
+import os.path
 from typing import Dict, List, Optional, Sequence
+
+import click
 from tabulate import tabulate
 
 from .bitrise import BitriseClient
@@ -28,6 +30,10 @@ def _find_app_entry_by_app_name(
     apps: List[AppEntry], app_name: str
 ) -> Optional[AppEntry]:
     app_name = app_name.lower()
+    for app in apps:
+        if app.app_code.lower() == app_name:
+            return app
+
     # We pick the app name that is most suitable.
     for app in apps:
         # Try to find a match.
@@ -191,7 +197,7 @@ def trigger(
 
 
 @nbp.command("list")
-def list_projects():
+def list_projects() -> None:
     """List configured NBP projects."""
     gcp_client = GCPClient()
     all_apps = gcp_client.get_apps()
@@ -230,7 +236,7 @@ def builds(
     staging: Optional[bool],
     production: Optional[bool],
     targets: Sequence[str],
-):
+) -> None:
     """Handle build."""
     ctx.ensure_object(dict)
     git_info = GitInfo.create()
@@ -238,6 +244,7 @@ def builds(
     ctx.obj["git_info"] = git_info
     ctx.obj["bitrise_client"] = bitrise_client
     gcp_client = GCPClient()
+    ctx.obj["gcp_client"] = gcp_client
     all_apps = gcp_client.get_apps()
     ctx.obj["app_entry"] = _find_app_entry(all_apps, git_info, app_name)
 
@@ -264,18 +271,27 @@ def builds(
     ctx.obj["workflows"] = workflows
 
 
-@builds.command()
+@builds.command("list")
+@click.option(
+    "-l",
+    "--limit",
+    type=click.IntRange(min=0, min_open=True),
+    help="Limits of entries per workflow.",
+    default=3,
+)
 @click.pass_context
-def list(ctx: click.Context):
+def builds_list(ctx: click.Context, limit: int) -> None:
     """Lists recent completed builds for the given app / branch."""
     app_entry: AppEntry = ctx.obj["app_entry"]
     git_branch: Optional[str] = ctx.obj["git_branch"]
-    bitrise_client: BitriseClient = ctx.obj["bitrise_client"]
+    gcp_client: GCPClient = ctx.obj["gcp_client"]
     workflows: Sequence[str] = ctx.obj["workflows"]
-    build_dict = bitrise_client.get_post_builds(app_entry.slug, git_branch, workflows)
-    for key, (build, apk_artifact) in build_dict.items():
-        click.echo(f"{build['build_number']}: {apk_artifact['title']}")
-        print(apk_artifact)
+    for workflow in workflows:
+        click.echo(f"Workflow {workflow}:")
+        for build_entry in gcp_client.find_builds(
+            app_entry, git_branch, workflow, limit
+        ):
+            click.echo(build_entry)
 
 
 @builds.command()
@@ -284,11 +300,11 @@ def list(ctx: click.Context):
     "--output",
     type=click.Path(file_okay=False, exists=True),
     help="Output directory for apks.",
-    default=".",
+    default=os.path.expanduser("~/Downloads/"),
 )
 @click.pass_context
 def apk(ctx: click.Context, output: str):
-    """Download pak for the give app / branch."""
+    """Download apk for the give app / branch."""
     app_entry: AppEntry = ctx.obj["app_entry"]
     git_branch: Optional[str] = ctx.obj["git_branch"]
     bitrise_client: BitriseClient = ctx.obj["bitrise_client"]

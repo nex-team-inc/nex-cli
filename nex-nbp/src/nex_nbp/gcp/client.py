@@ -1,9 +1,10 @@
-from typing import Dict, List, Optional
+from typing import Dict, Iterable, List, Optional
 
 from google.cloud import firestore
-import click
+from google.cloud.firestore_v1.base_query import FieldFilter
 
 from .app_entry import AppEntry
+from .build_entry import BuildEntry
 from .constants import GCP_PROJECT, FIRESTORE_DATABASE
 from .utils import get_gcp_credentials
 
@@ -36,5 +37,39 @@ class Client:
             )
         return ret
 
-    def list(self, app: AppEntry) -> List[Dict]:
-        return []
+    def find_builds(
+        self,
+        app: AppEntry,
+        branch: Optional[str] = None,
+        workflow: str = None,
+        limit: int = 5,
+    ) -> List[BuildEntry]:
+
+        collection_ref: firestore.CollectionReference = (
+            self._client.collection("projects")
+            .document(app.app_code)
+            .collection("builds")
+        )
+        query = collection_ref.order_by(
+            "trigger_timestamp", direction=firestore.Query.DESCENDING
+        )
+        if branch is not None:
+            query = query.where(filter=FieldFilter("branch", "==", branch))
+        if workflow is not None:
+            query = query.where(filter=FieldFilter("workflow", "==", workflow))
+        query = query.limit(limit)
+
+        ret = []
+        for snapshot in query.stream():
+            ret.append(
+                BuildEntry(
+                    int(snapshot.id),
+                    snapshot.get("branch"),
+                    workflow,
+                    snapshot.get("trigger_timestamp"),
+                    snapshot.get("app_build_number"),
+                    snapshot.get("apk_slug"),
+                    snapshot.get("apk_size"),
+                )
+            )
+        return ret
