@@ -9,6 +9,7 @@ from pyaxmlparser import APK
 from rich.console import Console
 from rich.live import Live
 from rich.table import Table
+from rich import print
 from nexcli.drive.service import download
 from nexcli.utils.locate import find_android_build_tools
 from nexcli.utils.uri import is_google_drive_uri
@@ -219,6 +220,12 @@ def signapk(apk, output=None, signer=None):
             click.echo(
                 f'Cannot verify new signature: {e.stderr.decode("utf-8")}', err=True
             )
+
+        # Output table to a log file
+        log_path = os.path.splitext(output)[0] + ".log"
+        with open(log_path, "w") as f:
+            print(table, file=f)
+
     return output
 
 
