@@ -44,6 +44,7 @@ PACKAGE_SIGNERS = {
     "team.nex.peppapig": INTERNAL_SIGNER,
     "team.nex.plane": INTERNAL_SIGNER,
     "team.nex.posediagnostics": INTERNAL_SIGNER,
+    "team.nex.retaillauncher": INTERNAL_SIGNER,
     "team.nex.starri": INTERNAL_SIGNER,
     "team.nex.sesameflying": INTERNAL_SIGNER,
     "team.nex.tennis": INTERNAL_SIGNER,
@@ -51,6 +52,7 @@ PACKAGE_SIGNERS = {
     "team.nex.whackamole": INTERNAL_SIGNER,
     # External games
     "team.nex.alieninvasion": EXTERNAL_SIGNER,
+    "team.nex.fruitninja": EXTERNAL_SIGNER,
     "team.nex.juglr": EXTERNAL_SIGNER,
     "team.nex.neowitch": EXTERNAL_SIGNER,
     "team.nex.starzzle": EXTERNAL_SIGNER,
