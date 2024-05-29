@@ -287,7 +287,7 @@ def builds_list(ctx: click.Context, limit: int) -> None:
     gcp_client: GCPClient = ctx.obj["gcp_client"]
     workflows: Sequence[str] = ctx.obj["workflows"]
 
-    headers = ("Build#", "Branch", "Time")
+    headers = ("Build#", "Branch", "Time", "Post Build URL", "APK Download URL")
     for workflow in workflows:
         click.echo(f"Workflow {workflow}:")
         click.echo(
@@ -297,6 +297,8 @@ def builds_list(ctx: click.Context, limit: int) -> None:
                         build_entry.build_num,
                         build_entry.branch,
                         datetime.fromtimestamp(build_entry.timestamp),
+                        build_entry.post_build_url,
+                        build_entry.apk_download_url,
                     )
                     for build_entry in gcp_client.find_latest_builds(
                         app_entry, git_branch, workflow, limit

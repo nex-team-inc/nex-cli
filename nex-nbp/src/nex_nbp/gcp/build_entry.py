@@ -27,3 +27,13 @@ class BuildEntry:
             snapshot.get("apk_slug"),
             snapshot.get("apk_size"),
         )
+
+    @property
+    def post_build_url(self) -> str:
+        return f"https://app.bitrise.io/build/{self.build_slug}"
+
+    @property
+    def apk_download_url(self) -> str:
+        if self.apk_slug is None:
+            return ""
+        return f"https://app.bitrise.io/artifact/{self.apk_slug}/download"
