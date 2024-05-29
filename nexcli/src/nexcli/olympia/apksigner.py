@@ -21,7 +21,7 @@ GCP_KMS_KEYRING = "playos-app-signer"
 
 INTERNAL_SIGNER = "playos-apk-signer-1"
 EXTERNAL_SIGNER = "playos-apk-signer-2"
-STAGING_SUFFIX = ".staging"
+VALID_SUFFIXES = [".staging", ".retail", ".retail.staging"]
 PACKAGE_SIGNERS = {
     # Internal games
     "team.nex.arcadexp": INTERNAL_SIGNER,
@@ -151,12 +151,18 @@ def signapk(apk, output=None, signer=None):
         metadata = APK(apk)
 
         # Ensure a signer is defined for the package
+        for suffix in [None, *VALID_SUFFIXES]:
+            if signer is not None:
+                break
+            signer = PACKAGE_SIGNERS.get(
+                metadata.package
+                if suffix is None
+                else metadata.package.removesuffix(suffix)
+            )
         if signer is None:
-            signer = PACKAGE_SIGNERS.get(metadata.package.removesuffix(STAGING_SUFFIX))
-            if signer is None:
-                raise click.ClickException(
-                    "No signing credential defined for " + metadata.package
-                )
+            raise click.ClickException(
+                "No signing credential defined for " + metadata.package
+            )
 
         table.add_row("Input File", apk)
         table.add_row("Package Name", metadata.package)
