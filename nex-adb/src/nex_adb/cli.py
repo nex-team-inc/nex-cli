@@ -5,6 +5,7 @@ from nexcli.common import Config
 from tabulate import tabulate
 from .device import Device
 
+
 @click.group()
 def adb() -> None:
     """ADB Utilities."""
@@ -12,15 +13,28 @@ def adb() -> None:
 
 
 @adb.command()
-@click.option("--cache/--no-cache", "use_cache", default=True, help="Whether we use the arp cache on the system.")
-def scan(use_cache: bool) -> None:
+def scan() -> None:
     """Scan for nearby Android devices."""
-    devices = Device.scan(use_cache)
-    click.echo(tabulate([(device.ip, device.serial_num, device.fingerprint) for device in devices], headers=("IP", "Serial Number", "Fingerprint")))
+    devices = Device.scan()
+    click.echo(
+        tabulate(
+            [(device.ip, device.serial_num, device.fingerprint) for device in devices],
+            headers=("IP", "Serial Number", "Fingerprint"),
+        )
+    )
+
 
 @adb.command()
-@click.option("--device", "-d", type=click.STRING, default=None, help="Set the device IP. Specify - to show a scan menu")
-@click.option("--package", "-p", type=click.STRING, default=None, help="Set the package.")
+@click.option(
+    "--device",
+    "-d",
+    type=click.STRING,
+    default=None,
+    help="Set the device IP. Specify - to show a scan menu",
+)
+@click.option(
+    "--package", "-p", type=click.STRING, default=None, help="Set the package."
+)
 def config(device: Optional[str], package: Optional[str]):
     """Configure running parameters."""
     cfg = Config.get("nex-adb")
@@ -28,7 +42,15 @@ def config(device: Optional[str], package: Optional[str]):
         if device == "-":
             # We need to do a scanning.
             devices = Device.scan()
-            click.echo(tabulate([(idx + 1, device.ip, device.serial_num, device.fingerprint) for idx, device in enumerate(devices)], headers=("#", "IP", "Serial Number", "Fingerprint")))
+            click.echo(
+                tabulate(
+                    [
+                        (idx + 1, device.ip, device.serial_num, device.fingerprint)
+                        for idx, device in enumerate(devices)
+                    ],
+                    headers=("#", "IP", "Serial Number", "Fingerprint"),
+                )
+            )
             while True:
                 picked = click.prompt("Pick a # from the table above.", type=int)
                 if picked >= 1 and picked <= len(devices):
@@ -47,7 +69,9 @@ def start(package: Optional[str]) -> None:
     cfg = Config.get("nex-adb")
     ip = cfg.str("core", "device")
     if not ip:
-        raise click.UsageError("Please configure device ip through nex adb config --device before using this command.")
+        raise click.UsageError(
+            "Please configure device ip through nex adb config --device before using this command."
+        )
     device = Device.create(ip)
     if device is None:
         raise click.UsageError(f"Cannot connect to device at {device}")
@@ -66,7 +90,9 @@ def kill(package: Optional[str]) -> None:
     cfg = Config.get("nex-adb")
     ip = cfg.str("core", "device")
     if not ip:
-        raise click.UsageError("Please configure device ip through nex adb config --device before using this command.")
+        raise click.UsageError(
+            "Please configure device ip through nex adb config --device before using this command."
+        )
     device = Device.create(ip)
     if device is None:
         raise click.UsageError(f"Cannot connect to device at {device}")
