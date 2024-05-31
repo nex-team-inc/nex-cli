@@ -13,9 +13,16 @@ def adb() -> None:
 
 
 @adb.command()
-def scan() -> None:
+@click.option(
+    "--timeout",
+    "-t",
+    type=click.FloatRange(min=0, min_open=True),
+    default=2.0,
+    help="Timeout for listening ARP responses.",
+)
+def scan(timeout: float) -> None:
     """Scan for nearby Android devices."""
-    devices = Device.scan()
+    devices = Device.scan(timeout)
     click.echo(
         tabulate(
             [(device.ip, device.serial_num, device.fingerprint) for device in devices],
