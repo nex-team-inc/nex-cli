@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "nex-adb"
-version = "0.0.5"
+version = "0.0.6"
 description = "Utilities for ADB usages in Nex."
 readme = "README.md"
 requires-python = ">=3.10"
@@ -14,7 +14,7 @@ dependencies = [
     "nexcli>=0.1.13",
     "adb_shell>=0.4",
     "tabulate>=0.9.0",
-    "nex_arpscanner>=0.0.3",
+    "nex_arpscanner>=0.0.4",
 ]
 
 [project.entry-points.'nexcli.subcommands']
