@@ -27,6 +27,7 @@ PACKAGE_SIGNERS = {
     # Internal games
     "team.nex.arcadexp": INTERNAL_SIGNER,
     "team.nex.archery": INTERNAL_SIGNER,
+    "team.nex.basketball": INTERNAL_SIGNER,
     "team.nex.basketballknockout": INTERNAL_SIGNER,
     "team.nex.bowling": INTERNAL_SIGNER,
     "team.nex.brickbuster": INTERNAL_SIGNER,
