@@ -12,7 +12,7 @@ from .port_checker import PortChecker
 
 class Device:
     @classmethod
-    def scan(cls, timeout: float = 2) -> List["Device"]:
+    def scan(cls, timeout: float = 1) -> List["Device"]:
         # Collect a bunch of hosts.
         hosts = arp_scan(timeout)
 
