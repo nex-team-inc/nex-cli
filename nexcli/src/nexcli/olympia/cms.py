@@ -30,7 +30,7 @@ if False:
     requests_log.setLevel(logging.DEBUG)
     requests_log.propagate = True
 
-CMS_HOST_PROD = "cms.x.poseidon.npg.games"  # TODO: replace with real one
+CMS_HOST_PROD = "cms.poseidon.npg.games"
 CMS_HOST_DEV = "cms.dev.poseidon.npg.games"
 ALLOWED_APK_PUBLIC_KEYS = [
     "2fa50246e4c67b1c88850e84cb28132422527865d3470072cb21636d876d41dd",
@@ -134,7 +134,7 @@ def publish(apk, label, is_prod, no_sign):
     data = {
         "packageName": meta.package,
         "versionCode": meta.version_code,
-        "rolloutGroupMin": 1,
+        "rolloutGroupMin": 0,
         "rolloutGroupMax": 100,
         "notes": notes,
     }
