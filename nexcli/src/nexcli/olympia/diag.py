@@ -111,10 +111,11 @@ def list(env, max_age):
 @click.argument("deviceid")
 @click.option("--from", "from_date", default="now-1d", help="Start time of the log.")
 @click.option("--to", "to_date", default="now", help="End time of the log.")
+@click.option("-r", "--reverse", "reverse_order", is_flag=True, help="Sort reversed.")
 @click.option("-l", "--min-level", help="Minimum log level.")
 @click.option("-t", "--tag", help="Log tag (support wildcard).")
 @click.option("-m", "--message", help="Log message (support wildcard).")
-def log(deviceid, from_date, to_date, min_level, tag, message):
+def log(deviceid, from_date, to_date, reverse_order, min_level, tag, message):
     """Get device log from OpenSearch."""
 
     if deviceid in DEVICE_ALIAS:
@@ -137,7 +138,7 @@ def log(deviceid, from_date, to_date, min_level, tag, message):
 
     search = Search(using=client, index=OS_LOG_INDEX)
     search = search.query(query)
-    search = search.sort("@timestamp")
+    search.sort("-@timestamp" if reverse_order else "@timestamp")
 
     start = 0
     page_size = 500
