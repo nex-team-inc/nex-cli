@@ -81,7 +81,7 @@ def download_folder(url):
 
     files = results.get("files", [])
     name_len_max = max(len(file["name"]) for file in files)
-    bar_format = "{desc:<" + str(name_len_max) + "}: {percentage:3.0f}%|{bar}{r_bar}"
+    bar_format = "{desc:<" + str(name_len_max) + "} {percentage:3.0f}%|{bar}{r_bar}"
     for file in files:
         download_file(service, file["id"], file["name"], bar_format=bar_format)
 
