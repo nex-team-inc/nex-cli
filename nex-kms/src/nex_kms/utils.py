@@ -46,7 +46,7 @@ def decrypt(
 
 
 def decrypt_string(
-    cipher_source: bytes | importlib.abc.Traversable | str | os.PathLike | io.IOBase,
+    cipher_source: bytes | Traversable | str | os.PathLike | io.IOBase,
     key: str = DEFAULT_KEY_ID,
     key_ring: str = DEFAULT_KEY_RING_ID,
     location: str = DEFAULT_LOCATION_ID,
