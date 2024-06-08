@@ -13,8 +13,15 @@ def cli():
 @click.argument("url", type=str)
 def download(url):
     """Download a file from Google Drive from a shareable link."""
-    output_file = service.download(url)
-    click.echo(f"File '{output_file}' downloaded successfully!")
+    service.download(url)
+
+
+@click.command()
+@click.argument("url", type=str)
+def download_folder(url):
+    """Download all files from a Google Drive folder link."""
+    service.download_folder(url)
 
 
 cli.add_command(download)
+cli.add_command(download_folder)

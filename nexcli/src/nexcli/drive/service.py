@@ -29,6 +29,15 @@ def extract_file_id(url):
         raise Exception(f"Invalid Google Drive URL: {url}")
 
 
+# Function to extract the folder ID from a Google Drive URL
+def extract_folder_id(url):
+    match = re.search(r"/drive/folders/([a-zA-Z0-9_-]+)", url)
+    if match:
+        return match.group(1)
+    else:
+        raise Exception(f"Invalid Google Drive URL: {url}")
+
+
 # Function to authenticate and create a Google Drive service
 def create_service():
     creds = None
@@ -49,24 +58,54 @@ def create_service():
 # Function to download a file from Google Drive given a shareable link
 def download(url, output_file=None):
     file_id = extract_file_id(url)
+    service = create_service()
+    return download_file(service, file_id, output_file)
 
+
+# Function to download all files from a Google Drive folder link.
+def download_folder(url):
+    folder_id = extract_folder_id(url)
     service = create_service()
 
-    # Extract the file name from the file metadata
-    file_metadata = (
-        service.files().get(fileId=file_id, supportsAllDrives=True).execute()
+    # List files in the folder
+    results = (
+        service.files()
+        .list(
+            q=f"'{folder_id}' in parents",
+            fields="files(id, name)",
+            includeItemsFromAllDrives=True,
+            supportsAllDrives=True,
+        )
+        .execute()
     )
+
+    files = results.get("files", [])
+    name_len_max = max(len(file["name"]) for file in files)
+    bar_format = "{desc:<" + str(name_len_max) + "}: {percentage:3.0f}%|{bar}{r_bar}"
+    for file in files:
+        download_file(service, file["id"], file["name"], bar_format=bar_format)
+
+
+def download_file(service, id, output_file=None, bar_format=None):
+    # Extract the file name from the file metadata
+    file_metadata = service.files().get(fileId=id, supportsAllDrives=True).execute()
     if output_file is None:
         output_file = file_metadata.get("name", "downloaded_file")
 
     # Download the content
-    request = service.files().get_media(fileId=file_id)
+    request = service.files().get_media(fileId=id)
     fh = io.BytesIO()
     downloader = MediaIoBaseDownload(fh, request)
 
-    with tqdm(unit="B", unit_scale=True, unit_divisor=1024) as pbar:
-        done = False
-        last_progress = 0
+    done = False
+    last_progress = 0
+    with tqdm(
+        unit="B",
+        desc=output_file,
+        unit_scale=True,
+        unit_divisor=1024,
+        bar_format=bar_format,
+    ) as pbar:
         while not done:
             status, done = downloader.next_chunk()
             pbar.total = status.total_size
