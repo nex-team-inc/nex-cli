@@ -104,11 +104,33 @@ def auth(token, is_prod):
 
 @click.command()
 @click.option("-l", "--label", required=True, help="A label for the release")
+@click.option("-e", "--environments", help="The environment IDs for the release (separated by comma)")
 @click.option("-p", "--production", "is_prod", is_flag=True)
 @click.option("--no-sign", is_flag=True, help="Do not sign the APK")
 @click.argument("apk")
-def publish(apk, label, is_prod, no_sign):
+def publish(apk, label, environments, is_prod, no_sign):
     """Publish (release) an APK by uploading to CMS."""
+
+    api_url = cms_api(is_prod)
+    api_token = get_token(is_prod)
+    click.echo(f"... using CMS: {api_url}")
+
+    if False and environments:
+        # Get environment IDs from Strapi and ensure they exists.
+        # Create filter for environments using a oneliner.
+        # Reference: GET /api/restaurants?filters[id][$in][0]=3&filters[id][$in][1]=6&filters[id][$in][2]=8
+        params = {f"filters[name][$in][{i}]": env for i, env in enumerate(environments.split(","))}
+        click.echo(params)
+        response = requests.get(
+            api_url + "/environments",
+            params,
+            headers={
+                "Authorization": f"Bearer {api_token}",
+            },
+        )
+        if response.status_code != 200:
+            raise click.ClickException(f"{response.status_code} {response.text}")
+        # TODO: return a list of environment IDs.
 
     if is_google_drive_uri(apk):
         click.echo(f"... downloading APK from {apk}")
@@ -122,8 +144,6 @@ def publish(apk, label, is_prod, no_sign):
         click.echo("... checking APK signature")
         check_signature(apk)
 
-    api_url = cms_api(is_prod)
-    api_token = get_token(is_prod)
     click.echo(f"... uploading to CMS: {api_url}")
 
     meta = APK(apk)
@@ -138,6 +158,9 @@ def publish(apk, label, is_prod, no_sign):
         "rolloutGroupMax": 100,
         "notes": notes,
     }
+    if environments:
+        data["environments"] = { "set": [int(x) for x in environments.split(",") if x ] }
+
     click.echo(json.dumps(data, indent=4))
 
     with open(apk, "rb") as file:
@@ -179,7 +202,6 @@ def publish(apk, label, is_prod, no_sign):
         click.echo(response.text)
 
 
-# packageName=team.nex.something&environment=default&rolloutGroup=1
 @click.command()
 @click.argument("pkg_name")
 @click.option(
@@ -198,6 +220,7 @@ def latest(pkg_name, environment, rollout_group, is_prod):
     api_url = cms_api(is_prod)
     api_token = get_token(is_prod)
 
+    # Custom format: packageName=team.nex.something&environment=default&rolloutGroup=1
     params = {
         "packageName": pkg_name,
         "environment": environment,
@@ -213,7 +236,6 @@ def latest(pkg_name, environment, rollout_group, is_prod):
     )
 
     if res.status_code != 200:
-        # print(res.headers)
         message = res.json().get("error", {}).get("message", res.text)
         raise click.ClickException(f"{res.status_code} {message}")
 
