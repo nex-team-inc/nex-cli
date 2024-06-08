@@ -18,4 +18,33 @@ pip install nex-kms
 
 ## Usage
 
-For package maintainer
+For package maintainer, if you are working on the `nexcli` repository, you can use `nex-dev kms` subcommand to invoke KMS commands.
+
+To bundle some secret data in your package, simply put the unencrypted file at your desired location, and run
+
+```BASH
+nex-dev kms encrypt "path-to-unencrypted-file"
+```
+
+By default, a new file with ".enc" suffix will appear in the same folder, which can be bundled out with the rest of the package.
+Please remember to remove / ignore the unencrypted version before building your package and uploading it.
+
+To read this encrypted file in code, please use the following code snippet:
+
+```Python
+from importlib import resources
+from nex_kms import decrypt
+
+unencrypted = decrypt(resources.files() / ... / encrypted_file.enc)
+```
+
+The path to the encrypted file should be supplied using the `resources.files()` API.
+To get a string instead of a byte array, replace `decrypt` by `decrypt_string` .
+
+If you do not have access to `nex-dev` , and you need to encrypt content, please use the gcloud command line:
+
+```BASH
+gcloud kms encrypt --plaintext-file="source_file" --ciphertext-file="source_file.enc" --key=pipconf --keyring=nexcli --location=global --project="development-179808"
+```
+
+In the command, replace source_file with the actual file you want to encrypt.
