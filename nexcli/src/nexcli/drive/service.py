@@ -71,7 +71,7 @@ def download_folder(url):
     results = (
         service.files()
         .list(
-            q=f"'{folder_id}' in parents",
+            q=f"'{folder_id}' in parents and trashed=false",
             fields="files(id, name)",
             includeItemsFromAllDrives=True,
             supportsAllDrives=True,
