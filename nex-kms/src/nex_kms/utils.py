@@ -31,7 +31,7 @@ def decrypt(
 ):
     if isinstance(cipher_source, bytes):
         ciphertext = cipher_source
-    elif isinstance(cipher_source, importlib.abc.Traversable):
+    elif isinstance(cipher_source, Traversable):
         ciphertext = cipher_source.read_bytes()
     elif isinstance(cipher_source, (str, os.PathLike)):
         with open(cipher_source) as file:
