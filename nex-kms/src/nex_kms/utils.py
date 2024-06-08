@@ -2,6 +2,7 @@ import importlib
 import os
 import io
 from pathlib import Path
+import sys
 
 from .constants import (
     DEFAULT_KEY_ID,
@@ -11,9 +12,18 @@ from .constants import (
 )
 from .client import Client
 
+if sys.version_info >= (3, 11):
+    from importlib.resources.abc import Traversable
+elif sys.version_info >= (3, 9):
+    from importlib.abc import Traversable
+else:
+    from typing import Any
+
+    Traversable = Any
+
 
 def decrypt(
-    cipher_source: bytes | importlib.abc.Traversable | str | os.PathLike | io.IOBase,
+    cipher_source: bytes | Traversable | str | os.PathLike | io.IOBase,
     key: str = DEFAULT_KEY_ID,
     key_ring: str = DEFAULT_KEY_RING_ID,
     location: str = DEFAULT_LOCATION_ID,
