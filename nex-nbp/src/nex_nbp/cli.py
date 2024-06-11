@@ -4,9 +4,12 @@ from typing import Dict, List, Optional, Sequence
 
 import click
 from tabulate import tabulate
+from nex_bitrise_index import Client as BitriseIndexClient
+from nex_bitrise_index.interface import AppEntry, BuildEntry
+import requests
+from tqdm import tqdm
 
 from .bitrise import BitriseClient
-from .gcp import AppEntry, BuildEntry, GCPClient
 from .git import GitInfo
 
 
@@ -168,8 +171,8 @@ def trigger(
     """Trigger a build through bitrise."""
     git_info = GitInfo.create()
     bitrise_client = BitriseClient()
-    gcp_client = GCPClient()
-    all_apps = gcp_client.get_apps()
+    bitrise_index_client = BitriseIndexClient()
+    all_apps = bitrise_index_client.fetch_all_apps()
 
     app_entry = _find_app_entry(all_apps, git_info, app_name)
     git_branch = _find_branch(git_info, branch)
@@ -199,8 +202,8 @@ def trigger(
 @nbp.command("list")
 def list_projects() -> None:
     """List configured NBP projects."""
-    gcp_client = GCPClient()
-    all_apps = gcp_client.get_apps()
+    bitrise_index_client = BitriseIndexClient()
+    all_apps = bitrise_index_client.fetch_all_apps()
     table = sorted([app.title, app.repo_url] for app in all_apps)
     headers = ["TITLE", "REPO-URL"]
     click.echo(tabulate(table, headers, tablefmt="simple"))
@@ -243,9 +246,9 @@ def builds(
     bitrise_client = BitriseClient()
     ctx.obj["git_info"] = git_info
     ctx.obj["bitrise_client"] = bitrise_client
-    gcp_client = GCPClient()
-    ctx.obj["gcp_client"] = gcp_client
-    all_apps = gcp_client.get_apps()
+    bitrise_index_client = BitriseIndexClient()
+    ctx.obj["bitrise_index_client"] = bitrise_index_client
+    all_apps = bitrise_index_client.fetch_all_apps()
     ctx.obj["app_entry"] = _find_app_entry(all_apps, git_info, app_name)
 
     if branch:
@@ -284,7 +287,7 @@ def builds_list(ctx: click.Context, limit: int) -> None:
     """Lists recent completed builds for the given app / branch."""
     app_entry: AppEntry = ctx.obj["app_entry"]
     git_branch: Optional[str] = ctx.obj["git_branch"]
-    gcp_client: GCPClient = ctx.obj["gcp_client"]
+    bitrise_index_client: BitriseIndexClient = ctx.obj["bitrise_index_client"]
     workflows: Sequence[str] = ctx.obj["workflows"]
 
     headers = ("Build#", "Branch", "Time", "Post Build URL", "APK Download URL")
@@ -300,8 +303,8 @@ def builds_list(ctx: click.Context, limit: int) -> None:
                         build_entry.post_build_url,
                         build_entry.apk_download_url,
                     )
-                    for build_entry in gcp_client.find_latest_builds(
-                        app_entry, git_branch, workflow, limit
+                    for build_entry in bitrise_index_client.list_latest_builds(
+                        app_entry.app_code, git_branch, workflow, limit
                     )
                 ),
                 headers=headers,
@@ -322,33 +325,41 @@ def builds_list(ctx: click.Context, limit: int) -> None:
 def apk(ctx: click.Context, build_nums: Sequence[int], output: str):
     """Download apk for the give app / branch."""
     app_entry: AppEntry = ctx.obj["app_entry"]
-    gcp_client: GCPClient = ctx.obj["gcp_client"]
+    bitrise_index_client: BitriseIndexClient = ctx.obj["bitrise_index_client"]
     build_entries: List[BuildEntry] = []
-    build_num_set = set()
     if len(build_nums) == 0:
+        build_num_set = set()
         # Figure out what the latest builds are.
         git_branch: Optional[str] = ctx.obj["git_branch"]
         workflows: Sequence[str] = ctx.obj["workflows"]
         for workflow in workflows:
-            for entry in gcp_client.find_latest_builds(
-                app_entry, git_branch, workflow, 1
+            for entry in bitrise_index_client.list_latest_builds(
+                app_entry.app_code, branch=git_branch, workflow=workflow, limit=1
             ):
                 if entry.build_num not in build_num_set:
                     build_entries.append(entry)
                     build_num_set.add(entry.build_num)
 
     else:
-        for build_num in build_nums:
-            if build_num not in build_num_set:
-                build_num_set.add(build_num)
-                entry = gcp_client.find_build(app_entry, build_num)
-                if entry is not None:
-                    build_entries.append(entry)
-                else:
-                    click.echo(f"Unable to find build {build_num}", err=True)
-
-    bitrise_client: BitriseClient = ctx.obj["bitrise_client"]
-    for build_entry in build_entries:
-        bitrise_client.download_artifact(
-            app_entry.slug, build_entry.build_slug, build_entry.apk_slug, output
+        build_entries.extend(
+            bitrise_index_client.fetch_builds(app_entry.app_code, list(set(build_nums)))
         )
+
+    for build_entry in build_entries:
+        # We are going to download one artifact at a time.
+        artifact_entry = bitrise_index_client.fetch_apk(
+            app_entry.app_code, build_num=build_entry.build_num
+        )
+        output_file = os.path.join(output, artifact_entry.name)
+        click.echo(f"Downloading to {output_file}")
+        click.echo(f"Download URL: {artifact_entry.download_url}")
+        with requests.get(artifact_entry.download_url, stream=True) as response:
+            response.raise_for_status()
+            with open(output_file, "wb") as file:
+                with tqdm(
+                    total=artifact_entry.byte_size, unit="b", unit_scale=True
+                ) as pbar:
+                    for chunk in response.iter_content(chunk_size=8192):
+                        if chunk:
+                            file.write(chunk)
+                            pbar.update(len(chunk))
