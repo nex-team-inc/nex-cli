@@ -27,7 +27,13 @@ class GitInfo:
     def __init__(self, gitdir: str):
         repo = Repo(gitdir)
         self._remote_url = repo.remote("origin").url
-        self._remote_name = repo.active_branch.tracking_branch().remote_head
+        active_branch = repo.active_branch
+        tracking_branch = active_branch.tracking_branch()
+        self._remote_name = (
+            tracking_branch.remote_head
+            if tracking_branch is not None
+            else active_branch.name
+        )
 
     @property
     def remote_url(self) -> str:
