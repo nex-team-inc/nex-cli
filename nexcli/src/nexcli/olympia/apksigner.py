@@ -73,6 +73,12 @@ def run_apksigner(*args, input=None):
     run_args.extend(args)
     if input and isinstance(input, str):
         input = input.encode("utf-8")
+
+    # apksigner requires a newline.
+    # Without it will cause a console closed error.
+    if input is not None:
+        input = input + b"\n"
+
     return subprocess.run(run_args, check=True, capture_output=True, input=input)
 
 
