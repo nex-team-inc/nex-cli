@@ -363,3 +363,50 @@ def apk(ctx: click.Context, build_nums: Sequence[int], output: str):
                         if chunk:
                             file.write(chunk)
                             pbar.update(len(chunk))
+
+
+@builds.command("tag")
+@click.option(
+    "-b",
+    "--build",
+    type=click.INT,
+    help="Build numbers to update",
+    multiple=True,
+)
+@click.option(
+    "-r", "--remove", is_flag=True, help="Remove the tags instead of adding them."
+)
+@click.option(
+    "-t", "--tag", type=click.STRING, multiple=True, help="Tags to add/remove."
+)
+@click.pass_context
+def builds_tag(
+    ctx: click.Context, build: Sequence[int], remove: bool, tag: Sequence[str]
+) -> None:
+    """Tag specific builds"""
+    app_entry: AppEntry = ctx.obj["app_entry"]
+    bitrise_index_client: BitriseIndexClient = ctx.obj["bitrise_index_client"]
+    bitrise_index_client.update_tag(app_entry.app_code, build, remove, tag)
+
+
+@builds.command("memo")
+@click.option(
+    "-b",
+    "--build",
+    type=click.INT,
+    help="Build numbers to update",
+    multiple=True,
+)
+@click.option(
+    "-r", "--replace", is_flag=True, help="Replace the memo instead of appending."
+)
+@click.pass_context
+def builds_memo(ctx: click.Context, build: Sequence[int], replace: bool) -> None:
+    """Add memo to builds."""
+    app_entry: AppEntry = ctx.obj["app_entry"]
+    bitrise_index_client: BitriseIndexClient = ctx.obj["bitrise_index_client"]
+    memo = click.edit()
+    if not memo:
+        click.echo("No memo specified", err=True)
+    else:
+        bitrise_index_client.add_memo(app_entry.app_code, build, replace, memo)
