@@ -86,6 +86,7 @@ def _find_app_entry(
             raise click.UsageError(
                 f"Could not find app on bitrise matching git url {git_info.remote_url}"
             )
+    click.echo(f"Selected App: {app_entry.app_code}")
     return app_entry
 
 
@@ -312,6 +313,28 @@ def builds_list(ctx: click.Context, limit: int) -> None:
         )
 
 
+@builds.command("details")
+@click.argument("build_nums", type=int, nargs=-1)
+@click.pass_context
+def build_details(ctx: click.Context, build_nums: Sequence[int]) -> None:
+    app_entry: AppEntry = ctx.obj["app_entry"]
+    bitrise_index_client: BitriseIndexClient = ctx.obj["bitrise_index_client"]
+    entries = bitrise_index_client.fetch_builds(app_entry.app_code, build_nums)
+    for entry in entries:
+        print("==================================")
+        print(f"BuildNum:  {entry.build_num}")
+        print(f"Version:   {entry.app_build_num}")
+        print(f"Time:      {datetime.fromtimestamp(entry.timestamp)}")
+        print(f"Workflow:  {entry.workflow}")
+        print(f"Branch:    {entry.branch}")
+        print(f"PostBuild: {entry.post_build_url}")
+        print(f"APK:       {entry.apk_download_url}")
+        print(f"Tags:      {entry.tags}")
+        if entry.memo:
+            indent = "           "
+            print(f"Memo:      {f"\n{indent}".join(entry.memo.split("\n"))}")
+
+
 @builds.command()
 @click.argument("build_nums", type=int, nargs=-1)
 @click.option(
@@ -322,7 +345,7 @@ def builds_list(ctx: click.Context, limit: int) -> None:
     default=os.path.expanduser("~/Downloads/"),
 )
 @click.pass_context
-def apk(ctx: click.Context, build_nums: Sequence[int], output: str):
+def builds_apk(ctx: click.Context, build_nums: Sequence[int], output: str) -> None:
     """Download apk for the give app / branch."""
     app_entry: AppEntry = ctx.obj["app_entry"]
     bitrise_index_client: BitriseIndexClient = ctx.obj["bitrise_index_client"]
@@ -397,16 +420,20 @@ def builds_tag(
     help="Build numbers to update",
     multiple=True,
 )
-@click.option(
-    "-r", "--replace", is_flag=True, help="Replace the memo instead of appending."
-)
+@click.option("-e", "--edit", is_flag=True, help="Edit the memo instead of appending.")
 @click.pass_context
-def builds_memo(ctx: click.Context, build: Sequence[int], replace: bool) -> None:
+def builds_memo(ctx: click.Context, build: Sequence[int], edit: bool) -> None:
     """Add memo to builds."""
     app_entry: AppEntry = ctx.obj["app_entry"]
     bitrise_index_client: BitriseIndexClient = ctx.obj["bitrise_index_client"]
-    memo = click.edit()
+    template = ""
+    if edit:
+        builds = bitrise_index_client.fetch_builds(app_entry.app_code, build)
+        # Use the first build memo as the template.
+        if builds:
+            template = builds[0].memo
+    memo = click.edit(template)
     if not memo:
         click.echo("No memo specified", err=True)
     else:
-        bitrise_index_client.add_memo(app_entry.app_code, build, replace, memo)
+        bitrise_index_client.add_memo(app_entry.app_code, build, edit, memo)
