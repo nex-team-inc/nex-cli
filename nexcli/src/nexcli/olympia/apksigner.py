@@ -24,6 +24,8 @@ INTERNAL_SIGNER = "playos-apk-signer-1"
 EXTERNAL_SIGNER = "playos-apk-signer-2"
 VALID_SUFFIXES = [".staging", ".retail", ".retail.staging"]
 PACKAGE_SIGNERS = {
+    # Internal tools
+    "team.nex.nbm": INTERNAL_SIGNER,
     # Internal games
     "team.nex.arcadexp": INTERNAL_SIGNER,
     "team.nex.archery": INTERNAL_SIGNER,
