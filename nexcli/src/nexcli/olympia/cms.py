@@ -103,7 +103,7 @@ def auth(token, is_prod):
 
 
 @click.command()
-@click.option("-l", "--label", required=True, help="A label for the release")
+@click.option("-l", "--label", help="A label for the release")
 @click.option("-e", "--environments", help="The environment IDs for the release (separated by comma)")
 @click.option("-p", "--production", "is_prod", is_flag=True)
 @click.option("--no-sign", is_flag=True, help="Do not sign the APK")
@@ -145,6 +145,10 @@ def publish(apk, label, environments, is_prod, no_sign):
         check_signature(apk)
 
     click.echo(f"... uploading to CMS: {api_url}")
+
+    if label is None:
+        # Get label from the directory name containing the APK in absolute path.
+        label = os.path.basename(os.path.dirname(os.path.abspath(apk)))
 
     meta = APK(apk)
     with open(apk, "rb") as file:
