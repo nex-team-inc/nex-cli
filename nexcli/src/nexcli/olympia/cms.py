@@ -114,6 +114,8 @@ def publish(apk, label, environments, is_prod, no_sign):
     api_url = cms_api(is_prod)
     api_token = get_token(is_prod)
     click.echo(f"... using CMS: {api_url}")
+    click.echo(f"... label: {label}")
+    click.echo(f"... environments: {environments}")
 
     if False and environments:
         # Get environment IDs from Strapi and ensure they exists.
