@@ -105,8 +105,8 @@ _WORKFLOW_MAP = {
     "olympia#-#prod": "build_olympia_apk_production",
     "sk#-#stag": "build_sk_apk_staging",
     "sk#-#prod": "build_sk_apk_production",
-    "sky#-#stag": "build_android_apk_sky_beta",
-    "sky#-#prod": "build_android_apk_sky_beta_staging",
+    "sky#-#stag": "build_android_apk_sky_beta_staging",
+    "sky#-#prod": "build_android_apk_sky_beta",
     "retail#-#stag": "build_olympia_retail_demo_stag",
     "retail#-#prod": "build_olympia_retail_demo_prod",
 }
