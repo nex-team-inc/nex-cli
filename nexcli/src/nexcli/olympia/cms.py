@@ -113,6 +113,10 @@ def publish(apk, label, environments, is_prod, no_sign):
 
     api_url = cms_api(is_prod)
     api_token = get_token(is_prod)
+    if label is None:
+        # Get label from the directory name containing the APK in absolute path.
+        label = os.path.basename(os.path.dirname(os.path.abspath(apk)))
+
     click.echo(f"... using CMS: {api_url}")
     click.echo(f"... label: {label}")
     click.echo(f"... environments: {environments}")
@@ -147,10 +151,6 @@ def publish(apk, label, environments, is_prod, no_sign):
         check_signature(apk)
 
     click.echo(f"... uploading to CMS: {api_url}")
-
-    if label is None:
-        # Get label from the directory name containing the APK in absolute path.
-        label = os.path.basename(os.path.dirname(os.path.abspath(apk)))
 
     meta = APK(apk)
     with open(apk, "rb") as file:
