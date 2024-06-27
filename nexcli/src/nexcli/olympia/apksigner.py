@@ -179,6 +179,7 @@ def signapk(apk, output=None, signer=None):
         table.add_row("Input File", apk)
         table.add_row("Package Name", metadata.package)
         table.add_row("Version Code", metadata.version_code)
+        table.add_row("Version Name", metadata.version_name)
         live.refresh()
 
         # Verify the current signature
