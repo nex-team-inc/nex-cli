@@ -317,6 +317,7 @@ def builds_list(ctx: click.Context, limit: int) -> None:
 @click.argument("build_nums", type=int, nargs=-1)
 @click.pass_context
 def build_details(ctx: click.Context, build_nums: Sequence[int]) -> None:
+    """Show details of a build."""
     app_entry: AppEntry = ctx.obj["app_entry"]
     bitrise_index_client: BitriseIndexClient = ctx.obj["bitrise_index_client"]
     entries = bitrise_index_client.fetch_builds(app_entry.app_code, build_nums)

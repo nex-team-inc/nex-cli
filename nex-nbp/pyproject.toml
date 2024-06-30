@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "nex-nbp"
-version = "0.0.12"
+version = "0.0.13"
 description = "Utilities on NBP"
 readme = "README.md"
 requires-python = ">=3.10"
@@ -14,7 +14,7 @@ dependencies = [
     "GitPython>=3.1.43",
     "nex-kms>=0.0.1",
     "requests>=2.31.0",
-    "nex-bitrise-index>=0.0.7",
+    "nex-bitrise-index>=0.0.9",
     "tabulate>=0.9.0",
     "tqdm>=4.66.4",
 ]
