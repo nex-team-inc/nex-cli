@@ -68,7 +68,7 @@ class Client:
 
     def build(
         self, app_slug: str, workflow_id: str, git_branch: str, clean: bool = False
-    ) -> Optional[Tuple[str, str]]:
+    ) -> Tuple[int, str, Dict]:
         build_params = {"branch": git_branch, "workflow_id": workflow_id}
         if clean:
             build_params["environments"] = [
@@ -87,10 +87,7 @@ class Client:
                 "build_params": build_params,
             },
         )
-        if response.status_code != 201:
-            return (response.reason, response.json())
-
-        return None
+        return (response.status_code, response.reason, response.json())
 
     def _get_post_builds(self, app_slug: str) -> Iterator[Dict]:
         response = requests.request(
